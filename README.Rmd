@@ -1,0 +1,20 @@
+---
+output:
+  github_document:
+    html_preview: false
+---
+
+<!-- README.md is generated from README.Rmd. Please edit that file -->
+
+```{r, echo = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.path = "README-"
+)
+```
+
+
+# MRP-target
+
+* `data` is not currently tracked, but anyone should be able to run `01_pull_ACS` and recreate the data after registering for a Census API (see code for how).
