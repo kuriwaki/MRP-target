@@ -90,18 +90,17 @@ gg_u_temp <- sample_n(cd_cell_compr, 2e3) %>%
   coord_capped_cart(bottom = "both", left = "both") +
   theme(plot.title = element_text(hjust = 0.5))
 
-gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation Unweighted")
-gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation Weighted", y = "CCES fraction")
+gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation Unweighted") + geom_point(size = 0.25)
+gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation Weighted", y = "CCES fraction") +  geom_point(size = 0.25)
 gg_u_cd <- gg_u_temp + labs(title = "CD Unweighted")
 gg_u_st <- gg_u_temp %+% st_cell_compr  + labs(title = "State Unweighted")
 gg_w_cd <- gg_u_temp + aes(y = cces_wfrac) + labs(title = "CD Weighted", y = "CCES fraction")
 gg_w_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_wfrac)  + labs(title = "State Weighted", y = "CCES fraction")
 
 gg_u_al + gg_w_al + gg_u_st +  gg_w_st + gg_u_cd + gg_w_cd  + plot_layout(nrow = 2, byrow = FALSE) +
-  plot_annotation(caption = "CCES is from 2018, ACS is from 2013-2017.
-  Estimates are proportion of a given Gender x Age Bin x Eductation profile in a state or CD.
-                  To avoid clutter, only up to 2,000 estimates for the CD are shown.")
-ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 0.75, w = 5*1.5)
+  plot_annotation(caption = "Source: CCES 2018, ACS 5yr 2013-2017. CCES weights are YouGov's national weights, applied to subsets of states/CDs in middle/right panels.
+  Estimates are proportion of a given Gender x Age Bin x Education cell in a state/CD. To avoid clutter, only up to 2,000 points shown in right panel.")
+ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 1, w = 5*1.5 + 0.8)
 
 # State-level demographics
 ## unweighted
