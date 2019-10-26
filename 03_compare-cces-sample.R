@@ -122,11 +122,11 @@ gg_u_temp <- cd_cell_compr %>%
 x1 <- 0.07
 y1 <- 0.09
 pt <- 3
-gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation, unweighted") + geom_point(size = 0.5) +
+gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation, unweighted") + geom_point(size = 1) +
   annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & !errs$weighted], size = pt) +
   annotate("text", x = 0.025, y = 0.0637, label = "Female, 45-64, HS\nin nation", size = pt - 1) +
   annotate("curve", x = 0.035, y = 0.061, xend = 0.044, yend = 0.062, arrow = arrow(length = unit(0.05, "inches")))
-gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation, weighted", y = "CCES Estimate") +  geom_point(size = 0.5) +
+gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation, weighted", y = "CCES Estimate") +  geom_point(size = 1) +
   annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & errs$weighted], size = pt)
 gg_u_st <- gg_u_temp %+% st_cell_compr + labs(title = "State-by-State, unweighted") + geom_point(alpha = 0.4, size = 0.3) +
   annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & !errs$weighted], size = pt)
