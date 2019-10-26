@@ -66,7 +66,9 @@ cd_cell_compr <- left_join(filter(cd_frac, year == 2017), cd_count,
 
 
 # stats on RMSE ---
-fracs_wide <- bind_rows(cd_cell_compr, st_cell_compr, all_cell_compr) %>%
+fracs_wide <- bind_rows(zap_labels(cd_cell_compr),
+                        zap_labels(st_cell_compr),
+                        zap_labels(all_cell_compr)) %>%
   select(geo, cdid:cd, stid:state, matches("frac"))
 
 fracs_long <- fracs_wide %>%
@@ -79,7 +81,6 @@ fracs_long <- fracs_wide %>%
 
 pp <- unit_format(accuracy = 0.01, scale = 1e2, unit = "pp")
 errs <- fracs_long %>%
-  filter(cces_frac > 0) %>%
   group_by(geo, weighted) %>%
   summarize(RMSE = sqrt(mean((frac_acs - cces_frac)^2)),
             bias = mean(abs(frac_acs - cces_frac)),
@@ -127,5 +128,75 @@ gg_u_al + gg_w_al +  gg_u_st +  gg_w_st + gg_u_cd + gg_w_cd  + plot_layout(nrow 
   plot_annotation(caption = "Source: CCES 2018, ACS 1yr 2017. All CCES weighting uses YouGov's national weights, even for state/CD subsets in middle/right panels.
   CCES/ACS estimate the proportion of a {gender x age bin x education} cell (60 combinations) per geography (1 nation, 50 states, or 435 CDs).")
 ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 1.2, w = 5*1.5 + 0.8)
+
+
+
+# education only ----
+# paste earlier, but without age and education
+# unweighted raw counts
+compr <- bind_rows(zap_labels(all_cell_compr),
+                   zap_labels(st_cell_compr),
+                   zap_labels(cd_cell_compr))
+cces_count_ed <-  compr %>%
+  group_by(educ, geo, state, cd) %>%
+  summarize(acs_frac = sum(count) / unique(count_geo),
+            cces_frac = sum(cces_n) / unique(cces_n_geo),
+            cces_wfrac = sum(cces_wn) / unique(cces_wn_geo))
+
+ed_long <- cces_count_ed %>%
+  pivot_longer(cols = -c(educ, geo:acs_frac),
+               values_to = "cces_frac",
+               names_to  = "weighted",
+               names_pattern = "cces_(frac|wfrac)") %>%
+  mutate(weighted = as.character(weighted == "wfrac")) %>%
+  ungroup() %>%
+  mutate(geo_fct = recode_factor(geo,
+                                 nat = "National",
+                                 st = "State-by-State",
+                                 cd = "CD-by-CD"),
+         wgt_fct = recode_factor(as.character(weighted),
+                                 `FALSE` = "unweighted",
+                                 `TRUE` = "weighted")) %>%
+  left_join(distinct(transmute(educ_key,
+                               educ_fct = as_factor(educ),
+                               educ = as.integer(educ))))
+
+
+pp <- unit_format(accuracy = 0.1, scale = 1e2, unit = "pp")
+errs_ed <- ed_long %>%
+  group_by(geo_fct, wgt_fct) %>%
+  summarize(RMSE = sqrt(mean((acs_frac - cces_frac)^2)),
+            bias = mean(abs(acs_frac - cces_frac)),
+            n = n()) %>%
+  mutate(txt = glue("RMSE: {pp(RMSE)}\nBias: {pp(bias)}")) %>%
+  ungroup()
+
+
+ed_long  %>%
+  ggplot(aes(acs_frac, cces_frac)) +
+  geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
+  coord_equal() +
+  geom_point(aes(size = geo_fct, alpha = geo_fct, color = educ_fct)) +
+  scale_color_viridis_d(end = 0.8) +
+  scale_size_manual(values  = c("National" = 2, "State-by-State" = 0.3, "CD-by-CD" = 0.05)) +
+  scale_alpha_manual(values = c("National" = 1, "State-by-State" = 1.0, "CD-by-CD" = 0.5)) +
+  scale_x_continuous(limits = c(0, 0.5), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
+  scale_y_continuous(limits = c(0, 0.5), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
+  labs(x = "Proportion in Geography (ACS)",
+       y = "CCES Estimate") +
+  coord_capped_cart(bottom = "both", left = "both") +
+  theme_classic() +
+  facet_rep_grid(wgt_fct ~ geo_fct) +
+  geom_text(data = errs_ed, aes(x = 0.1, y = 0.4, label = txt), size = 3) +
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 10),
+        axis.title = element_text(size = 8),
+        strip.background = element_rect(color = "transparent", fill = "lightgray"),
+        legend.position = "bottom") +
+  guides(size = FALSE,
+         alpha = FALSE,
+         color = guide_legend(title = "Education", nrow = 1, override.aes = list(size = 2))) +
+  labs(caption = "Source: CCES 2018, ACS 1yr 2017. All CCES weighting uses YouGov's national weights, even for state/CD subsets in middle/right panels.
+  CCES/ACS estimate the proportion of an education cell (6 combinations) per geography (1 nation, 50 states, or 435 CDs).")
+ggsave("figures/educfrac-comparisons.pdf", h = 5 + 1.2, w = 5*1.5 + 0.8)
 
 
