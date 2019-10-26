@@ -6,57 +6,41 @@ library(patchwork)
 library(scales)
 library(glue)
 
-resp18 <- read_rds("data/output/by-question_cces-2018.Rds")
+# calculate fraction after getting left-joined to full cells
+compute_fracs <- function(grptbl) {
+  stopifnot(is.grouped_df(grptbl))
+
+  grptbl %>%
+    mutate(cces_n_geo = sum(cces_n, na.rm = TRUE),
+           cces_wn_geo = sum(cces_wn, na.rm = TRUE)) %>%
+    mutate(cces_n = replace_na(cces_n, 0),
+           cces_wn = replace_na(cces_wn, 0),
+           cces_frac = cces_n / cces_n_geo,
+           cces_wfrac = cces_wn / cces_wn_geo)
+}
+
+
+resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
 all_frac <- read_rds("data/output/by-national_ACS_gender-age-education.Rds")
 cd_frac <- read_rds("data/output/by-CD_ACS_gender-age-education.Rds")
 st_frac <- read_rds("data/output/by-ST_ACS_gender-age-education.Rds")
 
 load("data/output/variable-labels.Rdata")
 
-cc18_raw <- resp18 %>%
+cc18 <- resp_18 %>%
   select(year:marstat) %>%
   distinct()
 
-# for age only, discretize to ACS format
-cc18 <- cc18_raw %>%
-  mutate(age_bin = case_when(age %in% 18:24 ~ 1L,
-                             age %in% 25:34 ~ 2L,
-                             age %in% 35:44 ~ 3L,
-                             age %in% 45:64 ~ 4L,
-                             age >=   65    ~ 5L,
-                             TRUE ~ NA_integer_),
-         age = labelled(age_bin, age_lbl))
-
 
 # unweighted raw counts
-cc_u_all <- count(cc18, gender, age, educ, name = "cces_n") %>%
-  mutate(cces_n_dist = sum(cces_n)) %>%
-  mutate(cces_frac = cces_n / cces_n_dist)
-
-cc_u_st <- count(cc18, state, gender, age, educ, name = "cces_n") %>%
-  group_by(state) %>%
-  mutate(cces_n_dist = sum(cces_n)) %>%
-  mutate(cces_frac = cces_n / cces_n_dist)
-
-cc_u_cd <- count(cc18, cd, gender, age, educ, name = "cces_n") %>%
-  group_by(cd) %>%
-  mutate(cces_n_dist = sum(cces_n)) %>%
-  mutate(cces_frac = cces_n / cces_n_dist)
+cc_u_all <- count(cc18, gender, age, educ, name = "cces_n")
+cc_u_st <- count(cc18, state, gender, age, educ, name = "cces_n")
+cc_u_cd <- count(cc18, cd, gender, age, educ, name = "cces_n")
 
 # weighted versions
-cc_w_all <- count(cc18, gender, age, educ, name = "cces_wn", wt = weight) %>%
-  mutate(cces_wn_dist = sum(cces_wn)) %>%
-  mutate(cces_wfrac = cces_wn / cces_wn_dist)
-
-cc_w_st <- count(cc18, state, gender, age, educ, name = "cces_wn", wt = weight) %>%
-  group_by(state) %>%
-  mutate(cces_wn_dist = sum(cces_wn)) %>%
-  mutate(cces_wfrac = cces_wn / cces_wn_dist)
-
-cc_w_cd <- count(cc18, cd, gender, age, educ, name = "cces_wn", wt = weight) %>%
-  group_by(cd) %>%
-  mutate(cces_wn_dist = sum(cces_wn)) %>%
-  mutate(cces_wfrac = cces_wn / cces_wn_dist)
+cc_w_all <- count(cc18, gender, age, educ, name = "cces_wn", wt = weight)
+cc_w_st <- count(cc18, state, gender, age, educ, name = "cces_wn", wt = weight)
+cc_w_cd <- count(cc18, cd, gender, age, educ, name = "cces_wn", wt = weight)
 
 # start aggregating by geo
 all_count  <- left_join(cc_u_all, cc_w_all, by = c("age", "gender", "educ"))
@@ -65,38 +49,37 @@ cd_count  <-  left_join(cc_u_cd, cc_w_cd, by = c("cd", "age", "gender", "educ"))
 
 
 # compare with CD state
-all_cell_compr <- left_join(filter(all_frac, year == 2017), all_count) %>%
-  mutate(cces_frac = replace_na(cces_frac, 0)) %>%
-  mutate(cces_wfrac = replace_na(cces_wfrac, 0)) %>%
-  mutate(geo = "nat")
+all_cell_compr <- left_join(filter(all_frac, year == 2017), all_count,
+                            by = c("gender", "age", "educ")) %>%
+  group_by(geo) %>%
+  compute_fracs()
 
 st_cell_compr <- left_join(filter(st_frac, year == 2017), st_count,
                            by = c("state", "gender", "age", "educ")) %>%
-  mutate(cces_frac = replace_na(cces_frac, 0)) %>%
-  mutate(cces_wfrac = replace_na(cces_wfrac, 0)) %>%
-  mutate(geo = "st")
+  group_by(state) %>%
+  compute_fracs()
 
 cd_cell_compr <- left_join(filter(cd_frac, year == 2017), cd_count,
           by = c("cd", "gender", "age", "educ")) %>%
-  mutate(cces_frac = replace_na(cces_frac, 0)) %>%
-  mutate(cces_wfrac = replace_na(cces_wfrac, 0)) %>%
-  mutate(geo = "cd")
+  group_by(cd) %>%
+  compute_fracs()
 
 
 # stats on RMSE ---
 fracs_wide <- bind_rows(cd_cell_compr, st_cell_compr, all_cell_compr) %>%
-  select(geo, cdid:cd, stid:state, variable, matches("frac"))
+  select(geo, cdid:cd, stid:state, matches("frac"))
 
 fracs_long <- fracs_wide %>%
-  pivot_longer(cols = -c(geo:frac_dist),
+  pivot_longer(cols = -c(geo:frac_geo),
                values_to = "cces_frac",
                names_to  = "weighted",
                names_pattern = "cces_(frac|wfrac)") %>%
-  rename(frac_acs = frac_dist) %>%
+  rename(frac_acs = frac_geo) %>%
   mutate(weighted = weighted == "wfrac")
 
-pp <- unit_format(accuracy = 0.1, scale = 1e2, unit = "pp")
+pp <- unit_format(accuracy = 0.01, scale = 1e2, unit = "pp")
 errs <- fracs_long %>%
+  filter(cces_frac > 0) %>%
   group_by(geo, weighted) %>%
   summarize(RMSE = sqrt(mean((frac_acs - cces_frac)^2)),
             bias = mean(abs(frac_acs - cces_frac)),
@@ -107,7 +90,7 @@ errs <- fracs_long %>%
 
 # get a sense of relationship ----
 gg_u_temp <- cd_cell_compr %>%
-  ggplot(aes(frac_dist, cces_frac)) +
+  ggplot(aes(frac_geo, cces_frac)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
   coord_equal() +
   scale_x_continuous(limits = c(0, 0.108), breaks = seq(0, 0.1, 0.02), labels = percent_format(accuracy = 2)) +
@@ -142,5 +125,7 @@ gg_w_cd <- gg_u_temp + aes(y = cces_wfrac) + geom_point(alpha = 0.2, size = 0.01
 
 gg_u_al + gg_w_al +  gg_u_st +  gg_w_st + gg_u_cd + gg_w_cd  + plot_layout(nrow = 2, byrow = FALSE) +
   plot_annotation(caption = "Source: CCES 2018, ACS 1yr 2017. All CCES weighting uses YouGov's national weights, even for state/CD subsets in middle/right panels.
-  CCES/ACS estimate the proportion of a {gender x age bin x education} cell (40 combinations) per geography (1 nation, 50 states, or 435 CDs).")
+  CCES/ACS estimate the proportion of a {gender x age bin x education} cell (60 combinations) per geography (1 nation, 50 states, or 435 CDs).")
 ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 1.2, w = 5*1.5 + 0.8)
+
+
