@@ -101,7 +101,7 @@ errs <- fracs_long %>%
   summarize(RMSE = sqrt(mean((frac_acs - cces_frac)^2)),
             bias = mean(abs(frac_acs - cces_frac)),
             n = n()) %>%
-  mutate(txt = glue("RMSE = {pp(RMSE)}\nBias = {pp(bias)}")) %>%
+  mutate(txt = glue("RMSE: {pp(RMSE)}\nBias: {pp(bias)}")) %>%
   ungroup()
 
 
@@ -110,8 +110,8 @@ gg_u_temp <- cd_cell_compr %>%
   ggplot(aes(frac_dist, cces_frac)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
   coord_equal() +
-  scale_x_continuous(limits = c(0, 0.10)) +
-  scale_y_continuous(limits = c(0, 0.10)) +
+  scale_x_continuous(limits = c(0, 0.108), breaks = seq(0, 0.1, 0.02), labels = percent_format(accuracy = 2)) +
+  scale_y_continuous(limits = c(0, 0.108), breaks = seq(0, 0.1, 0.02), labels = percent_format(accuracy = 2)) +
   theme_classic() +
   labs(x = "Proportion in Geography (ACS)",
        y = "CCES Estimate") +
@@ -122,23 +122,25 @@ gg_u_temp <- cd_cell_compr %>%
 x1 <- 0.07
 y1 <- 0.09
 pt <- 3
+tc <- "navy"
 gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation, unweighted") + geom_point(size = 1) +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & !errs$weighted], size = pt) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & !errs$weighted], size = pt, color = tc) +
   annotate("text", x = 0.025, y = 0.0637, label = "Female, 45-64, HS\nin nation", size = pt - 1) +
   annotate("curve", x = 0.035, y = 0.061, xend = 0.044, yend = 0.062, arrow = arrow(length = unit(0.05, "inches")))
 gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation, weighted", y = "CCES Estimate") +  geom_point(size = 1) +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & errs$weighted], size = pt)
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & errs$weighted], size = pt, color = tc)
 gg_u_st <- gg_u_temp %+% st_cell_compr + labs(title = "State-by-State, unweighted") + geom_point(alpha = 0.4, size = 0.3) +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & !errs$weighted], size = pt)
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & !errs$weighted], size = pt, color = tc) +
+  annotate("text",  x = 0.020, y = 0.075, label = "Female, 45-64, HS\nin Michigan", size = pt - 1) +
+  annotate("curve", x = 0.022, y = 0.066, xend = 0.049, yend = 0.0705, arrow = arrow(length = unit(0.05, "inches")))
 gg_w_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_wfrac) + geom_point(alpha = 0.4, size = 0.3) + labs(title = "State-by-State, weighted", y = "CCES Estimate") +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & errs$weighted], size = pt)
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & errs$weighted], size = pt, color = tc)
 gg_u_cd <- gg_u_temp + labs(title = "CD-by-CD, unweighted") + geom_point(alpha = 0.2, size = 0.01) +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & !errs$weighted], size = pt)
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & !errs$weighted], size = pt, color = tc)
 gg_w_cd <- gg_u_temp + aes(y = cces_wfrac) + geom_point(alpha = 0.2, size = 0.01) + labs(title = "CD-by-CD, weighted", y = "CCES Estimate") +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & errs$weighted], size = pt)
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & errs$weighted], size = pt, color = tc)
 
 gg_u_al + gg_w_al +  gg_u_st +  gg_w_st + gg_u_cd + gg_w_cd  + plot_layout(nrow = 2, byrow = FALSE) +
   plot_annotation(caption = "Source: CCES 2018, ACS 1yr 2017. All CCES weighting uses YouGov's national weights, even for state/CD subsets in middle/right panels.
-  CCES/ACS estimate the proportion of a {gender x age bin x education} cell (480 combinations) per geography (1 nation, 50 states, or 435 CDs).")
-ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 1.5, w = 5*1.5 + 0.8)
-
+  CCES/ACS estimate the proportion of a {gender x age bin x education} cell (40 combinations) per geography (1 nation, 50 states, or 435 CDs).")
+ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 1.2, w = 5*1.5 + 0.8)
