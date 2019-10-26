@@ -180,17 +180,18 @@ ed_long  %>%
   scale_color_viridis_d(end = 0.8) +
   scale_size_manual(values  = c("National" = 2, "State-by-State" = 0.3, "CD-by-CD" = 0.05)) +
   scale_alpha_manual(values = c("National" = 1, "State-by-State" = 1.0, "CD-by-CD" = 0.5)) +
-  scale_x_continuous(limits = c(0, 0.5), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
-  scale_y_continuous(limits = c(0, 0.5), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
+  scale_x_continuous(limits = c(0, 0.54), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
+  scale_y_continuous(limits = c(0, 0.54), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
   labs(x = "Proportion in Geography (ACS)",
        y = "CCES Estimate") +
   coord_capped_cart(bottom = "both", left = "both") +
   theme_classic() +
-  facet_rep_grid(wgt_fct ~ geo_fct) +
+  facet_rep_grid(wgt_fct ~ geo_fct, repeat.tick.labels = TRUE) +
   geom_text(data = errs_ed, aes(x = 0.1, y = 0.4, label = txt), size = 3) +
   theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 10),
-        axis.title = element_text(size = 8),
-        strip.background = element_rect(color = "transparent", fill = "lightgray"),
+        axis.title = element_text(size = 10),
+        strip.text = element_text(face = "bold", size = 10),
+        strip.background = element_rect(color = "transparent", fill = "transparent"),
         legend.position = "bottom") +
   guides(size = FALSE,
          alpha = FALSE,
