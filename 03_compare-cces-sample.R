@@ -3,12 +3,15 @@ library(haven)
 library(lemon)
 library(ggthemes)
 library(patchwork)
+library(scales)
+library(glue)
 
 resp18 <- read_rds("data/output/by-question_cces-2018.Rds")
 all_frac <- read_rds("data/output/by-national_ACS_gender-age-education.Rds")
 cd_frac <- read_rds("data/output/by-CD_ACS_gender-age-education.Rds")
 st_frac <- read_rds("data/output/by-ST_ACS_gender-age-education.Rds")
 
+load("data/output/variable-labels.Rdata")
 
 cc18_raw <- resp18 %>%
   select(year:marstat) %>%
@@ -55,63 +58,87 @@ cc_w_cd <- count(cc18, cd, gender, age, educ, name = "cces_wn", wt = weight) %>%
   mutate(cces_wn_dist = sum(cces_wn)) %>%
   mutate(cces_wfrac = cces_wn / cces_wn_dist)
 
+# start aggregating by geo
+all_count  <- left_join(cc_u_all, cc_w_all, by = c("age", "gender", "educ"))
+st_count  <-  left_join(cc_u_st, cc_w_st, by = c("state", "age", "gender", "educ"))
+cd_count  <-  left_join(cc_u_cd, cc_w_cd, by = c("cd", "age", "gender", "educ"))
+
 
 # compare with CD state
-all_cell_compr <- left_join(filter(all_frac, year == 2017), cc_u_all,
-                           by = c("gender", "age", "educ")) %>%
-  left_join(cc_w_all, by = c("gender", "age", "educ")) %>%
+all_cell_compr <- left_join(filter(all_frac, year == 2017), all_count) %>%
   mutate(cces_frac = replace_na(cces_frac, 0)) %>%
-  mutate(cces_wfrac = replace_na(cces_wfrac, 0))
+  mutate(cces_wfrac = replace_na(cces_wfrac, 0)) %>%
+  mutate(geo = "nat")
 
-st_cell_compr <- left_join(filter(st_frac, year == 2017), cc_u_st,
+st_cell_compr <- left_join(filter(st_frac, year == 2017), st_count,
                            by = c("state", "gender", "age", "educ")) %>%
-  left_join(cc_w_st, by = c("state", "gender", "age", "educ")) %>%
   mutate(cces_frac = replace_na(cces_frac, 0)) %>%
-  mutate(cces_wfrac = replace_na(cces_wfrac, 0))
+  mutate(cces_wfrac = replace_na(cces_wfrac, 0)) %>%
+  mutate(geo = "st")
 
-cd_cell_compr <- left_join(filter(cd_frac, year == 2017), cc_u_cd,
+cd_cell_compr <- left_join(filter(cd_frac, year == 2017), cd_count,
           by = c("cd", "gender", "age", "educ")) %>%
-  left_join(cc_w_cd, by = c("cd", "gender", "age", "educ")) %>%
   mutate(cces_frac = replace_na(cces_frac, 0)) %>%
-  mutate(cces_wfrac = replace_na(cces_wfrac, 0))
+  mutate(cces_wfrac = replace_na(cces_wfrac, 0)) %>%
+  mutate(geo = "cd")
+
 
 # stats on RMSE ---
-cd_cell_compr %>% mutate()
+fracs_wide <- bind_rows(cd_cell_compr, st_cell_compr, all_cell_compr) %>%
+  select(geo, cdid:cd, stid:state, variable, matches("frac"))
+
+fracs_long <- fracs_wide %>%
+  pivot_longer(cols = -c(geo:frac_dist),
+               values_to = "cces_frac",
+               names_to  = "weighted",
+               names_pattern = "cces_(frac|wfrac)") %>%
+  rename(frac_acs = frac_dist) %>%
+  mutate(weighted = weighted == "wfrac")
+
+pp <- unit_format(accuracy = 0.1, scale = 1e2, unit = "pp")
+errs <- fracs_long %>%
+  group_by(geo, weighted) %>%
+  summarize(RMSE = sqrt(mean((frac_acs - cces_frac)^2)),
+            bias = mean(abs(frac_acs - cces_frac)),
+            n = n()) %>%
+  mutate(txt = glue("RMSE = {pp(RMSE)}\nBias = {pp(bias)}")) %>%
+  ungroup()
 
 
 # get a sense of relationship ----
-
-gg_u_temp <- sample_n(cd_cell_compr, 2e3) %>%
+gg_u_temp <- cd_cell_compr %>%
   ggplot(aes(frac_dist, cces_frac)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
   coord_equal() +
-  geom_point(alpha = 0.4, size = 0.1) +
   scale_x_continuous(limits = c(0, 0.10)) +
   scale_y_continuous(limits = c(0, 0.10)) +
   theme_classic() +
-  labs(x = "ACS fraction",
-       y = "CCES fraction") +
+  labs(x = "Proportion in Geography (ACS)",
+       y = "CCES Estimate") +
   coord_capped_cart(bottom = "both", left = "both") +
-  theme(plot.title = element_text(hjust = 0.5))
+  theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 10),
+        axis.title = element_text(size = 8))
 
-gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation Unweighted") + geom_point(size = 0.5)
-gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation Weighted", y = "CCES fraction") +  geom_point(size = 0.5)
-gg_u_cd <- gg_u_temp + labs(title = "CD Unweighted")
-gg_u_st <- gg_u_temp %+% st_cell_compr  + labs(title = "State Unweighted")
-gg_w_cd <- gg_u_temp + aes(y = cces_wfrac) + labs(title = "CD Weighted", y = "CCES fraction")
-gg_w_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_wfrac)  + labs(title = "State Weighted", y = "CCES fraction")
+x1 <- 0.07
+y1 <- 0.09
+pt <- 3
+gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation, unweighted") + geom_point(size = 0.5) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & !errs$weighted], size = pt) +
+  annotate("text", x = 0.025, y = 0.0637, label = "Female, 45-64, HS\nin nation", size = pt - 1) +
+  annotate("curve", x = 0.035, y = 0.061, xend = 0.044, yend = 0.062, arrow = arrow(length = unit(0.05, "inches")))
+gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation, weighted", y = "CCES Estimate") +  geom_point(size = 0.5) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & errs$weighted], size = pt)
+gg_u_st <- gg_u_temp %+% st_cell_compr + labs(title = "State-by-State, unweighted") + geom_point(alpha = 0.4, size = 0.3) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & !errs$weighted], size = pt)
+gg_w_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_wfrac) + geom_point(alpha = 0.4, size = 0.3) + labs(title = "State-by-State, weighted", y = "CCES Estimate") +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & errs$weighted], size = pt)
+gg_u_cd <- gg_u_temp + labs(title = "CD-by-CD, unweighted") + geom_point(alpha = 0.2, size = 0.01) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & !errs$weighted], size = pt)
+gg_w_cd <- gg_u_temp + aes(y = cces_wfrac) + geom_point(alpha = 0.2, size = 0.01) + labs(title = "CD-by-CD, weighted", y = "CCES Estimate") +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & errs$weighted], size = pt)
 
-gg_u_al + gg_w_al + gg_u_st +  gg_w_st + gg_u_cd + gg_w_cd  + plot_layout(nrow = 2, byrow = FALSE) +
-  plot_annotation(caption = "Source: CCES 2018, ACS 5yr 2013-2017. CCES weights are YouGov's national weights, applied to subsets of states/CDs in middle/right panels.
-  Estimates are proportion of a given Gender x Age Bin x Education cell in a state/CD. To avoid clutter, only up to 2,000 points shown in right panel.")
-ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 1, w = 5*1.5 + 0.8)
+gg_u_al + gg_w_al +  gg_u_st +  gg_w_st + gg_u_cd + gg_w_cd  + plot_layout(nrow = 2, byrow = FALSE) +
+  plot_annotation(caption = "Source: CCES 2018, ACS 1yr 2017. All CCES weighting uses YouGov's national weights, even for state/CD subsets in middle/right panels.
+  CCES/ACS estimate the proportion of a {gender x age bin x education} cell (480 combinations) per geography (1 nation, 50 states, or 435 CDs).")
+ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 1.5, w = 5*1.5 + 0.8)
 
-# State-level demographics
-## unweighted
-
-## weighted
-
-
-# CD-level
-## unweighted
-## weighted to national
