@@ -25,20 +25,29 @@ cd_name <- function(vec, st_to_state = st_df) {
 
 # Pull all data ----
 
+std_acs <- function(df) {
+  df %>%
+  filter(!str_detect(NAME, "Puerto Rico")) %>%
+    rename(count = estimate,
+           count_moe = moe)
+}
+
 pop_cd <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   get_acs(geography = "congressional district",
           year = y,
           survey = "acs1",
           variable = str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
           geometry = FALSE) %>%
-    filter(!str_detect(NAME, "Puerto Rico")) %>%
-    transmute(year = y,
-           cdid = GEOID,
-           cd = cd_name(NAME),
-           variable,
-           count = estimate,
-           count_moe = moe)
-}
+    mutate(year = y)
+}  %>%
+  std_acs() %>%
+  transmute(
+    year, variable,
+    cdid = GEOID,
+    cd = cd_name(NAME),
+    count, count_moe
+  )
+
 
 pop_st <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   get_acs(geography = "state",
@@ -46,14 +55,25 @@ pop_st <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
           survey = "acs1",
           variable = str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
           geometry = FALSE) %>%
-    filter(!str_detect(NAME, "Puerto Rico")) %>%
-    transmute(year = y,
-           stid = GEOID,
-           state = NAME,
-           variable,
-           count = estimate,
-           count_moe = moe)
-}
+    mutate(year = y)
+}  %>%
+  std_acs() %>%
+  transmute(
+    year, variable,
+    stid = GEOID,
+    state = NAME,
+    count, count_moe
+  )
+
+pop_all <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
+  get_acs(geography = "us",
+          year = y,
+          survey = "acs1",
+          variable = str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
+          geometry = FALSE) %>%
+    mutate(year = y)
+} %>%
+  std_acs()
 
 # Recode variable df ------
 ages  <- c("18 to 24 years",
@@ -127,7 +147,9 @@ clean_strat <- function(grp_tab, geo, codes = cell_vars) {
 all_frac <- group_by(pop_st, year, variable) %>%
   summarize(count = sum(count)) %>%
   clean_strat("nat")
-
+us_frac <- pop_all %>%
+  group_by(year) %>%
+  clean_strat("nat")
 st_frac <- clean_strat(group_by(pop_st, year, stid, state), "st")
 cd_frac <- clean_strat(group_by(pop_cd, year, cdid, cd), "cd")
 
