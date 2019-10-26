@@ -60,20 +60,24 @@ cc_w_cd <- count(cc18, cd, gender, age, educ, name = "cces_wn", wt = weight) %>%
 all_cell_compr <- left_join(filter(all_frac, year == 2017), cc_u_all,
                            by = c("gender", "age", "educ")) %>%
   left_join(cc_w_all, by = c("gender", "age", "educ")) %>%
-  mutate(cces_n = replace_na(cces_n, 0)) %>%
-  mutate(cces_wn = replace_na(cces_wn, 0))
+  mutate(cces_frac = replace_na(cces_frac, 0)) %>%
+  mutate(cces_wfrac = replace_na(cces_wfrac, 0))
 
 st_cell_compr <- left_join(filter(st_frac, year == 2017), cc_u_st,
                            by = c("state", "gender", "age", "educ")) %>%
   left_join(cc_w_st, by = c("state", "gender", "age", "educ")) %>%
-  mutate(cces_n = replace_na(cces_n, 0)) %>%
-  mutate(cces_wn = replace_na(cces_wn, 0))
+  mutate(cces_frac = replace_na(cces_frac, 0)) %>%
+  mutate(cces_wfrac = replace_na(cces_wfrac, 0))
 
 cd_cell_compr <- left_join(filter(cd_frac, year == 2017), cc_u_cd,
           by = c("cd", "gender", "age", "educ")) %>%
   left_join(cc_w_cd, by = c("cd", "gender", "age", "educ")) %>%
-  mutate(cces_n = replace_na(cces_n, 0)) %>%
-  mutate(cces_wn = replace_na(cces_wn, 0))
+  mutate(cces_frac = replace_na(cces_frac, 0)) %>%
+  mutate(cces_wfrac = replace_na(cces_wfrac, 0))
+
+# stats on RMSE ---
+cd_cell_compr %>% mutate()
+
 
 # get a sense of relationship ----
 
@@ -90,8 +94,8 @@ gg_u_temp <- sample_n(cd_cell_compr, 2e3) %>%
   coord_capped_cart(bottom = "both", left = "both") +
   theme(plot.title = element_text(hjust = 0.5))
 
-gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation Unweighted") + geom_point(size = 0.25)
-gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation Weighted", y = "CCES fraction") +  geom_point(size = 0.25)
+gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation Unweighted") + geom_point(size = 0.5)
+gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation Weighted", y = "CCES fraction") +  geom_point(size = 0.5)
 gg_u_cd <- gg_u_temp + labs(title = "CD Unweighted")
 gg_u_st <- gg_u_temp %+% st_cell_compr  + labs(title = "State Unweighted")
 gg_w_cd <- gg_u_temp + aes(y = cces_wfrac) + labs(title = "CD Weighted", y = "CCES fraction")
