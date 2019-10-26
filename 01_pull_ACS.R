@@ -24,11 +24,12 @@ cd_name <- function(vec, st_to_state = st_df) {
 
 # Pull all data ----
 
-pop_cd <- foreach(y = 2010:2017, .combine = "bind_rows") %do% {
+pop_cd <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   get_acs(geography = "congressional district",
-               year = y,
-               variable = str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
-               geometry = FALSE) %>%
+          year = y,
+          survey = "acs1",
+          variable = str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
+          geometry = FALSE) %>%
     filter(!str_detect(NAME, "Puerto Rico")) %>%
     transmute(year = y,
            cdid = GEOID,
@@ -38,9 +39,10 @@ pop_cd <- foreach(y = 2010:2017, .combine = "bind_rows") %do% {
            count_moe = moe)
 }
 
-pop_st <- foreach(y = 2010:2017, .combine = "bind_rows") %do% {
+pop_st <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   get_acs(geography = "state",
           year = y,
+          survey = "acs1",
           variable = str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
           geometry = FALSE) %>%
     filter(!str_detect(NAME, "Puerto Rico")) %>%
@@ -84,7 +86,7 @@ gender_key <- tibble(num = 1:2L,
 
 
 # get vars ----
-vars <- load_variables(2017, "acs5", cache = TRUE) %>%
+vars <- load_variables(2017, "acs1", cache = TRUE) %>%
   filter(str_detect(name, "B15001_")) %>%
   mutate(gender = str_extract(label, "(Male|Female)"),
          age = str_extract(label, glue("({str_c(ages, collapse = '|')})")),
@@ -123,3 +125,5 @@ cd_frac <- clean_strat(group_by(pop_cd, year, cdid, cd))
 write_rds(all_frac, "data/output/by-national_ACS_gender-age-education.Rds")
 write_rds(cd_frac, "data/output/by-CD_ACS_gender-age-education.Rds")
 write_rds(st_frac, "data/output/by-ST_ACS_gender-age-education.Rds")
+save(age_key, gender_key, educ_key, educ_lbl, age_lbl,
+     file = "data/output/variable-labels.Rdata")
