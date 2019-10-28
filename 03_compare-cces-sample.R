@@ -34,8 +34,8 @@ cc18 <- resp_18 %>%
 
 # unweighted raw counts
 cc_u_all <- count(cc18, gender, age, educ, name = "cces_n")
-cc_u_st <- count(cc18, state, gender, age, educ, name = "cces_n")
-cc_u_cd <- count(cc18, cd, gender, age, educ, name = "cces_n")
+cc_u_st  <- count(cc18, state, gender, age, educ, name = "cces_n")
+cc_u_cd  <- count(cc18, cd, gender, age, educ, name = "cces_n")
 
 # weighted versions
 cc_w_all <- count(cc18, gender, age, educ, name = "cces_wn", wt = weight)
