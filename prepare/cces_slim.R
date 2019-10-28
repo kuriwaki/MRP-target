@@ -27,5 +27,10 @@ resp_18 <- inner_join(person, response, by = c("year", "case_id")) %>%
                              TRUE ~ NA_integer_),
          age = labelled(age_bin, age_lbl))
 
+cc18 <- resp_18 %>%
+  select(year:marstat) %>%
+  distinct()
+
 
 write_rds(resp_18, "data/input/by-question_cces-2018.Rds")
+write_rds(cc18, "data/input/by-person_cces-2018.Rds")
