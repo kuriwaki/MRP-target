@@ -12,24 +12,26 @@ compute_fracs <- function(grptbl) {
 
   grptbl %>%
     mutate(cces_n_geo = sum(cces_n, na.rm = TRUE),
-           cces_wn_geo = sum(cces_wn, na.rm = TRUE)) %>%
+           cces_wn_geo = sum(cces_wn, na.rm = TRUE),
+           cces_sn_geo = sum(cces_sn, na.rm = TRUE)) %>%
     mutate(cces_n = replace_na(cces_n, 0),
            cces_wn = replace_na(cces_wn, 0),
+           cces_sn = replace_na(cces_sn, 0),
            cces_frac = cces_n / cces_n_geo,
-           cces_wfrac = cces_wn / cces_wn_geo)
+           cces_wfrac = cces_wn / cces_wn_geo,
+           cces_sfrac = cces_sn / cces_sn_geo)
 }
 
 
-resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
+cc18_raw <- read_rds("data/input/by-person_cces-2018.Rds")
+weights <- read_rds("data/output/weights-state.Rds")
 all_frac <- read_rds("data/output/by-national_ACS_gender-age-education.Rds")
 cd_frac <- read_rds("data/output/by-CD_ACS_gender-age-education.Rds")
 st_frac <- read_rds("data/output/by-ST_ACS_gender-age-education.Rds")
 
 load("data/output/variable-labels.Rdata")
 
-cc18 <- resp_18 %>%
-  select(year:marstat) %>%
-  distinct()
+cc18 <- left_join(cc18_raw, weights, by = c("case_id", "weight"))
 
 
 # unweighted raw counts
@@ -42,10 +44,19 @@ cc_w_all <- count(cc18, gender, age, educ, name = "cces_wn", wt = weight)
 cc_w_st <- count(cc18, state, gender, age, educ, name = "cces_wn", wt = weight)
 cc_w_cd <- count(cc18, cd, gender, age, educ, name = "cces_wn", wt = weight)
 
+# state weighted versions
+cc_s_all <- count(cc18, gender, age, educ, name = "cces_sn", wt = weight_st)
+cc_s_st <- count(cc18, state, gender, age, educ, name = "cces_sn", wt = weight_st)
+cc_s_cd <- count(cc18, cd, gender, age, educ, name = "cces_sn", wt = weight_st)
+
+
 # start aggregating by geo
-all_count  <- left_join(cc_u_all, cc_w_all, by = c("age", "gender", "educ"))
-st_count  <-  left_join(cc_u_st, cc_w_st, by = c("state", "age", "gender", "educ"))
-cd_count  <-  left_join(cc_u_cd, cc_w_cd, by = c("cd", "age", "gender", "educ"))
+all_count  <- left_join(cc_u_all, cc_w_all, by = c("age", "gender", "educ")) %>%
+  left_join(cc_s_all)
+st_count  <-  left_join(cc_u_st, cc_w_st, by = c("state", "age", "gender", "educ")) %>%
+  left_join(cc_s_st)
+cd_count  <-  left_join(cc_u_cd, cc_w_cd, by = c("cd", "age", "gender", "educ")) %>%
+  left_join(cc_s_cd)
 
 
 # compare with CD state
@@ -74,19 +85,20 @@ fracs_wide <- bind_rows(zap_labels(cd_cell_compr),
 fracs_long <- fracs_wide %>%
   pivot_longer(cols = -c(geo:frac_geo),
                values_to = "cces_frac",
-               names_to  = "weighted",
-               names_pattern = "cces_(frac|wfrac)") %>%
+               names_to  = "w_type",
+               names_pattern = "cces_(frac|wfrac|sfrac)") %>%
   rename(frac_acs = frac_geo) %>%
-  mutate(weighted = weighted == "wfrac")
+  mutate(weighted = w_type == "wfrac")
 
 pp <- unit_format(accuracy = 0.01, scale = 1e2, unit = "pp")
 errs <- fracs_long %>%
-  group_by(geo, weighted) %>%
+  group_by(geo, w_type) %>%
   summarize(RMSE = sqrt(mean((frac_acs - cces_frac)^2)),
             bias = mean(abs(frac_acs - cces_frac)),
             n = n()) %>%
   mutate(txt = glue("RMSE: {pp(RMSE)}\nBias: {pp(bias)}")) %>%
   ungroup()
+errs
 
 
 # get a sense of relationship ----
@@ -97,7 +109,7 @@ gg_u_temp <- cd_cell_compr %>%
   scale_x_continuous(limits = c(0, 0.108), breaks = seq(0, 0.1, 0.02), labels = percent_format(accuracy = 2)) +
   scale_y_continuous(limits = c(0, 0.108), breaks = seq(0, 0.1, 0.02), labels = percent_format(accuracy = 2)) +
   theme_classic() +
-  labs(x = "Proportion in Geography (ACS)",
+  labs(x = "Proportion in Geography (Reported by ACS)",
        y = "CCES Estimate") +
   coord_capped_cart(bottom = "both", left = "both") +
   theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 10),
@@ -117,7 +129,7 @@ gg_u_st <- gg_u_temp %+% st_cell_compr + labs(title = "State-by-State, unweighte
   annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & !errs$weighted], size = pt, color = tc) +
   annotate("text",  x = 0.020, y = 0.075, label = "Female, 45-64, HS\nin Michigan", size = pt - 1) +
   annotate("curve", x = 0.022, y = 0.066, xend = 0.049, yend = 0.0705, arrow = arrow(length = unit(0.05, "inches")))
-gg_w_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_wfrac) + geom_point(alpha = 0.4, size = 0.3) + labs(title = "State-by-State, weighted", y = "CCES Estimate") +
+gg_w_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_sfrac) + geom_point(alpha = 0.4, size = 0.3) + labs(title = "State-by-State, weighted", y = "CCES Estimate") +
   annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & errs$weighted], size = pt, color = tc)
 gg_u_cd <- gg_u_temp + labs(title = "CD-by-CD, unweighted") + geom_point(alpha = 0.2, size = 0.01) +
   annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & !errs$weighted], size = pt, color = tc)
@@ -141,22 +153,22 @@ cces_count_ed <-  compr %>%
   group_by(educ, geo, state, cd) %>%
   summarize(acs_frac = sum(count) / unique(count_geo),
             cces_frac = sum(cces_n) / unique(cces_n_geo),
-            cces_wfrac = sum(cces_wn) / unique(cces_wn_geo))
+            cces_wfrac = sum(cces_wn) / unique(cces_wn_geo),
+            cces_sfrac = sum(cces_sn) / unique(cces_sn_geo))
 
 ed_long <- cces_count_ed %>%
   pivot_longer(cols = -c(educ, geo:acs_frac),
                values_to = "cces_frac",
-               names_to  = "weighted",
-               names_pattern = "cces_(frac|wfrac)") %>%
-  mutate(weighted = as.character(weighted == "wfrac")) %>%
+               names_to  = "weight_type",
+               names_pattern = "cces_(frac|wfrac|sfrac)") %>%
   ungroup() %>%
   mutate(geo_fct = recode_factor(geo,
                                  nat = "National",
                                  st = "State-by-State",
-                                 cd = "CD-by-CD"),
-         wgt_fct = recode_factor(as.character(weighted),
-                                 `FALSE` = "unweighted",
-                                 `TRUE` = "weighted")) %>%
+                                 cd = "CD-by-CD")) %>%  # %>%
+         # wgt_fct = recode_factor(as.character(weighted),
+                                 # `FALSE` = "unweighted",
+                                 # `TRUE` = "weighted")) %>%
   left_join(distinct(transmute(educ_key,
                                educ_fct = as_factor(educ),
                                educ = as.integer(educ))))
@@ -164,7 +176,7 @@ ed_long <- cces_count_ed %>%
 
 pp <- unit_format(accuracy = 0.1, scale = 1e2, unit = "pp")
 errs_ed <- ed_long %>%
-  group_by(geo_fct, wgt_fct) %>%
+  group_by(geo_fct, weight_type) %>%
   summarize(RMSE = sqrt(mean((acs_frac - cces_frac)^2)),
             bias = mean(abs(acs_frac - cces_frac)),
             n = n()) %>%
@@ -182,11 +194,11 @@ ed_long  %>%
   scale_alpha_manual(values = c("National" = 1, "State-by-State" = 1.0, "CD-by-CD" = 0.5)) +
   scale_x_continuous(limits = c(0, 0.54), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
   scale_y_continuous(limits = c(0, 0.54), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
-  labs(x = "Proportion in Geography (ACS)",
+  labs(x = "Proportion in Geography (Reported by ACS)",
        y = "CCES Estimate") +
   coord_capped_cart(bottom = "both", left = "both") +
   theme_classic() +
-  facet_rep_grid(wgt_fct ~ geo_fct, repeat.tick.labels = TRUE) +
+  facet_rep_grid(weight_type ~ geo_fct, repeat.tick.labels = TRUE) +
   geom_text(data = errs_ed, aes(x = 0.1, y = 0.4, label = txt), size = 3) +
   theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 10),
         axis.title = element_text(size = 10),
