@@ -2,8 +2,8 @@
 \usepackage{memo}
 
 % Parmaters --
-\title{\large\textbf{Post-stratification weights and MR-P}}
-\author{\normalsize  Shiro Kuriwaki}
+\title{\large\textbf{Creating and Using Post-Stratification Weighting for District-level Estimates}}
+\author{\normalsize  Shiro Kuriwaki\thanks{Ph.D. Candidate, Department of Government and Institute of Quantitative Social Science, Harvard University. Thanks to Soichiro Yamauchi for helpful discussions.}}
 
 \date{\normalsize October 2019}
 
@@ -13,25 +13,131 @@
 
 \onehalfspacing
 
+In this memo I explore how representative CCES samples are at subnational geographies, and whether post-stratification weights ameliorate the problem. Although post-stratification weights are designed to coerce samples to be representative, one set of weights makes a sample representative to only one target, in CCES' case the entire U.S. It is not clear if those same weights \emph{also} make subgroup samples representative of their respective subgroup targets. 
 
-The CCES 2018 Guide  reports
+Multi-level post-stratification (MRP) methods take another route, whereby the targets for granular joint distributions are computed first so that they can be combined to any preferred level of aggregation for the post-stratification step. However, MRP has several limitations. First, often times analysts only have marginal, not joint distributions at the level they care about. Second, one MRP model is specific to one outcome, so comparing more than one issue question would involve building as many multi-level models as there are outcomes. In contrast, once post-stratification weights are defined, it can be used for any sets of outcomes. 
+
+\section*{Setup}
+
+The ACS and CCES collect the following shared variables about their respondents. There is some difference in question wording or lumping categories, but here for simplicity I use the most common denominator.
+
+\setlist{nosep, leftmargin = 0.5cm}
+
+\begin{table}[!h]
+\small
+\begin{tabularx}{\linewidth}{XXX}
+Gender & Age & Education\\\midrule
+\begin{itemize}
+\item Male
+\item Female
+\end{itemize} &
+\begin{itemize}
+\item 18 to 24 years
+\item 25 to 34 years
+\item 35 to 44 years
+\item 45 to 64 years
+\item 65 years and over
+\end{itemize} &
+\begin{itemize}
+\item No high school
+\item High school graduate
+\item Some college, no degree
+\item Associate's degree
+\item Bachelor's degree
+\item Graduate / professional
+\end{itemize}
+\end{tabularx}
+\end{table}
+
+\section*{Exploration}
+
+I considered three types of estimates:
+
+\begin{enumerate}
+\item Unweighted sample proportions
+\item Weighted proportions with YouGov's national post-stratification weights
+\item Weighted proportions with custom state-specific weights. 
+\end{enumerate}
+
+\paragraph{YouGov's national weights} The CCES 2018 Guide  reports
+
 \begin{quote}
-The [matched] cases and the frame were combined and the combined cases were balanced on multiple moment conditions using the 2017 ACS.  ... First, for the common content, the completed cases were weighted to the sampling frame using entropy balancing. ... The CCES sample was weighted to match the distributions of the 2017 ACS on gender, age, race, Hispanic origin, and education level. 
+\singlespacing
+The [matched] cases and the frame were combined and the combined cases were balanced on multiple moment conditions using the 2017 ACS.  ... First, for the common content, the completed cases were weighted to the sampling frame using entropy balancing. ... The CCES sample was weighted to match the distributions of the 2017 ACS  ... 
 
 The moment conditions included age, gender, education, race, plus their interactions. The resultant weights were then post-stratified by age, gender, education, race, ``born again" status, voter registration status, and 2016 Presidential vote choice, as needed. Additionally, for the common content, the weights were post-stratified across states and statewide political races (for governor and senator). Weights larger than 15 in the common content were trimmed and the final weights normalized to equal sample size. 
 \end{quote}
 
+Although we do not have access to YouGov's full code, we can partly reproduce this procedure. The ACS provides their own estimates of marginal and some distribution of demographics at the national, state, and congressional district level. We uses those as a source of our target distribution.
+
+\paragraph{State-specific weights} I created simple rim weights by going state sample by state sample, and assigning a set of weights that targeted marginal distribution of gender, age, and education in that state (as reported by the ACS). I did not target the joint distributions because some state samples were too samples were too small and had zero observations for some of the cells. 
+
+\newpage
+
+\section*{YouGov Weight Results}
+
+We first start by evaluating one metric, education, in Figure \ref{fig:cellfrac-ed}. We notice several things from the figure:
+
+\smallskip
+
+\begin{enumerate}
+\item The first set of plots in the first row show that small-samples are on average less representatives than larger ones.
+\item The second row, by comparison, shows that YouGov's weights make the estimates more representative. Although the weights primarily target the national distribution, (a) the weighted average for national estimates are not perfect, and (b) state and district estimates are improved as well. 
+\item Most of the improvement in the second comes from a reduction in bias rather than reduction in variance. 
+\item There is a smaller reduction in bias in the district level estimates.
+\end{enumerate}
+
 \begin{figure}[tbph]
+\caption{Representativeness of samples at different levels of geographies, education \label{fig:cellfrac-ed}}
 \centering
 \includegraphics[width = \textwidth]{figures/educfrac-comparisons.pdf}
 \end{figure}
 
-\begin{figure}
+\FloatBarrier
+
+We next take a look not only at education, but the representativeness in terms of education-gender-age joint distributions. YouGov weights on first moments and (presumably two-way) interactions, so their weighted are not guaranteed to hold for three-way joint distributions.  Figure \ref{fig:cellfrac-ed-age-sex} shows those quantities of interest, proliferating the number of points to examine. We find:
+
+\smallskip 
+\begin{enumerate}
+\item National estimates improve about as much as in Figure \ref{fig:cellfrac-ed} in ratio terms.
+\item State estimates also improve somewhat, but not by much (8 percent reduction in RMSE, as opposed to 40 percent in the marginal distribution case).
+\item District estimates do not improve, and its bias \emph{increases} slightly by 0.08 percentage points. The bias variance decomposition suggests that the variance has increased as well.
+\item Some of the outliers in the state estimate suggests that the YouGov national weights up-weight some state-demographic cells in a way that makes them less representative of the state. 
+\end{enumerate}
+
+\begin{figure}[bt!h]
 \centering
-\includegraphics[width = \textwidth]{figures/cellfrac-comparisons.pdf}
+\caption{Representativeness of samples at different levels of geographies, education \(\times\) age \(\times\) gender fraction \label{fig:cellfrac-ed-age-sex}}
+\includegraphics[width = \textwidth]{figures/cellfrac-comparisons.png}
 \end{figure}
+
+\FloatBarrier
+\newpage
+
+\section*{Custom Rim Weights}
+
+Do weights that are specifically targeted to match on the state-specific moments improve representativeness? These weights must get the state-by-state marginal distributions exactly right by construction. How does it improve representativeness at larger or lower levels of aggregation? Figure \ref{fig:rim-comparisons} shows figures analogous to the prior figures:
+
+\medskip
+\begin{enumerate}
+\item The rim weights coerce the marginal estimates to match the population targets, as expected.
+\item Although each state subsample's weights is computed separately, its concatenation makes national estimates representatives too. 
+\item At the smaller district level, the marginal estimates have also improved, and slightly outperform the YouGov weights.
+\item However, rim weights do not necessarily improve representativeness of joint distributions. The bottom panel shows that those estimates are about as representative as those with YouGov weights, perhaps by reducing the variance.
+\end{enumerate}
+
+\FloatBarrier
+
+\begin{figure}[!ht]
+\centering
+\caption{Representativeness with custom state-by-state rim weights \label{fig:rim-comparisons}}
+\includegraphics[width = \textwidth]{figures/educfrac-rim-comparisons.pdf}
+\includegraphics[width = \textwidth]{figures/cellfrac-rim-comparisons.pdf}
+\end{figure}
+
 
 \end{document}
 
 
 
+ 
