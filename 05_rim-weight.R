@@ -1,5 +1,7 @@
 library(tidyverse)
 library(iterake)
+library(foreach)
+library(haven)
 
 # data ----
 
@@ -47,7 +49,7 @@ for (st_i in u_stids) {
 }
 
 
-# States ---------
+# CDs ---------
 # container
 # year
 targets_cd <- cd_frac %>%
@@ -62,8 +64,7 @@ w_df_cd <- matrix(NA,
   as_tibble()
 
 
-
-# loop over states ---
+# loop over CDs ---
 for (dist_i in u_cdids) {
 
   target_i <- targets_cd %>%
@@ -87,6 +88,52 @@ for (dist_i in u_cdids) {
   w_df_cd[, dist_i] <- df_wgt$weight_cd
 }
 
+
+# state partitioned weights -----
+targets_st <- st_frac %>%
+  filter(year == 2017)
+u_states <- unique(targets_st$state)
+u_stids  <- unique(targets_st$stid)
+
+# subset at each state ---
+st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
+
+  target_i <- targets_st %>%
+    filter(state == st_i) %>%
+    mutate_if(is.labelled, zap_labels)
+
+  prop_i_gender <- target_i %>%
+    group_by(gender) %>%
+    summarize(count = sum(count))
+
+  prop_i_age <- target_i %>%
+    group_by(age) %>%
+    summarize(count = sum(count))
+
+  prop_i_educ <- target_i %>%
+    group_by(educ) %>%
+    summarize(count = sum(count))
+
+  uni <- universe(
+    data = filter(cc18, state == st_i) %>% mutate_if(is.labelled, zap_labels),
+    category(name = "gender", prop_i_gender$gender, targets = prop_i_gender$count, sum.1 = TRUE),
+    category(name = "age", prop_i_age$age, targets = prop_i_age$count, sum.1 = TRUE),
+    category(name = "educ", prop_i_educ$educ, targets = prop_i_educ$count, sum.1 = TRUE)
+    )
+
+  df_wgt <- iterake(universe = uni,
+                    max.iter = 100,
+                    max.wgt = 15,
+                    wgt.name = "weight_st")
+
+  select(df_wgt, case_id, weight, weight_st)
+}
+
+st_par_w %>%
+  ggplot(aes(weight, weight_st)) +
+  geom_point(size = 0.1)
+
+write_rds(st_par_w, "data/output/weights-state.Rds")
 
 # long, store ------
 
