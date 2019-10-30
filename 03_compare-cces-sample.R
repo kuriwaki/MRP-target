@@ -1,5 +1,6 @@
 library(tidyverse)
 library(haven)
+library(labelled)
 library(lemon)
 library(ggthemes)
 library(patchwork)
@@ -120,27 +121,39 @@ y1 <- 0.09
 pt <- 3
 tc <- "navy"
 gg_u_al <- gg_u_temp %+% all_cell_compr  + labs(title = "Nation, unweighted") + geom_point(size = 1) +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & !errs$weighted], size = pt, color = tc) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & errs$w_type == "frac"], size = pt, color = tc) +
   annotate("text", x = 0.025, y = 0.0637, label = "Female, 45-64, HS\nin nation", size = pt - 1) +
   annotate("curve", x = 0.035, y = 0.061, xend = 0.044, yend = 0.062, arrow = arrow(length = unit(0.05, "inches")))
-gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation, weighted", y = "CCES Estimate") +  geom_point(size = 1) +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & errs$weighted], size = pt, color = tc)
+gg_w_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_wfrac)  + labs(title = "Nation, YouGov weights", y = "CCES Estimate") +  geom_point(size = 1) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & errs$w_type == "wfrac"], size = pt, color = tc)
 gg_u_st <- gg_u_temp %+% st_cell_compr + labs(title = "State-by-State, unweighted") + geom_point(alpha = 0.4, size = 0.3) +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & !errs$weighted], size = pt, color = tc) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & errs$w_type == "frac"], size = pt, color = tc) +
   annotate("text",  x = 0.020, y = 0.075, label = "Female, 45-64, HS\nin Michigan", size = pt - 1) +
   annotate("curve", x = 0.022, y = 0.066, xend = 0.049, yend = 0.0705, arrow = arrow(length = unit(0.05, "inches")))
-gg_w_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_sfrac) + geom_point(alpha = 0.4, size = 0.3) + labs(title = "State-by-State, weighted", y = "CCES Estimate") +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & errs$weighted], size = pt, color = tc)
+gg_w_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_wfrac) + geom_point(alpha = 0.4, size = 0.3) + labs(title = "State-by-State, YouGov weights", y = "CCES Estimate") +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & errs$w_type == "wfrac"], size = pt, color = tc)
 gg_u_cd <- gg_u_temp + labs(title = "CD-by-CD, unweighted") + geom_point(alpha = 0.2, size = 0.01) +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & !errs$weighted], size = pt, color = tc)
-gg_w_cd <- gg_u_temp + aes(y = cces_wfrac) + geom_point(alpha = 0.2, size = 0.01) + labs(title = "CD-by-CD, weighted", y = "CCES Estimate") +
-  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & errs$weighted], size = pt, color = tc)
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & errs$w_type == "frac"], size = pt, color = tc)
+gg_w_cd <- gg_u_temp + aes(y = cces_wfrac) + geom_point(alpha = 0.2, size = 0.01) + labs(title = "CD-by-CD, YouGov weights", y = "CCES Estimate") +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & errs$w_type == "wfrac"], size = pt, color = tc)
 
-gg_u_al + gg_w_al +  gg_u_st +  gg_w_st + gg_u_cd + gg_w_cd  + plot_layout(nrow = 2, byrow = FALSE) +
+gg_u_al + gg_w_al +   gg_u_st +  gg_w_st  + gg_u_cd + gg_w_cd + plot_layout(ncol = 3, byrow = FALSE) +
   plot_annotation(caption = "Source: CCES 2018, ACS 1yr 2017. All CCES weighting uses YouGov's national weights, even for state/CD subsets in middle/right panels.
   CCES/ACS estimate the proportion of a {gender x age bin x education} cell (60 combinations) per geography (1 nation, 50 states, or 435 CDs).")
 ggsave("figures/cellfrac-comparisons.pdf", h = 5 + 1.2, w = 5*1.5 + 0.8)
+ggsave("figures/cellfrac-comparisons.png", h = 5 + 1.2, w = 5*1.5 + 0.8)
 
+
+gg_s_al <- gg_u_temp %+% all_cell_compr + aes(y = cces_sfrac)  + labs(title = "Nation", y = "CCES Estimate") +  geom_point(size = 1) +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "nat" & errs$w_type == "sfrac"], size = pt, color = tc)
+gg_s_st <- gg_u_temp %+% st_cell_compr + aes(y = cces_sfrac) + geom_point(alpha = 0.4, size = 0.3) + labs(title = "State-by-State", y = "CCES Estimate") +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "st" & errs$w_type == "sfrac"], size = pt, color = tc)
+gg_s_cd <- gg_u_temp + aes(y = cces_sfrac) + geom_point(alpha = 0.2, size = 0.01) + labs(title = "CD-by-CD", y = "CCES Estimate") +
+  annotate("text", x = x1, y = y1, label = errs$txt[errs$geo == "cd" & errs$w_type == "sfrac"], size = pt, color = tc)
+
+gg_s_al + gg_s_st + gg_s_cd  + plot_layout(ncol = 3, byrow = FALSE) +
+  plot_annotation(caption = "CCES uses custom state-by-state rim weights.")
+ggsave("figures/cellfrac-rim-comparisons.png", h = 3, w = 2.5*3)
 
 
 # education only ----
@@ -165,10 +178,11 @@ ed_long <- cces_count_ed %>%
   mutate(geo_fct = recode_factor(geo,
                                  nat = "National",
                                  st = "State-by-State",
-                                 cd = "CD-by-CD")) %>%  # %>%
-         # wgt_fct = recode_factor(as.character(weighted),
-                                 # `FALSE` = "unweighted",
-                                 # `TRUE` = "weighted")) %>%
+                                 cd = "CD-by-CD"),  # %>%
+         wgt_fct = to_labelled(recode_factor(as.character(weight_type),
+                                 `frac` = "Unweighted",
+                                 `wfrac` = "YouGov weights",
+                                 `sfrac` = "State-by-state rim weights"))) %>%
   left_join(distinct(transmute(educ_key,
                                educ_fct = as_factor(educ),
                                educ = as.integer(educ))))
@@ -176,7 +190,7 @@ ed_long <- cces_count_ed %>%
 
 pp <- unit_format(accuracy = 0.1, scale = 1e2, unit = "pp")
 errs_ed <- ed_long %>%
-  group_by(geo_fct, weight_type) %>%
+  group_by(geo_fct, wgt_fct) %>%
   summarize(RMSE = sqrt(mean((acs_frac - cces_frac)^2)),
             bias = mean(abs(acs_frac - cces_frac)),
             n = n()) %>%
@@ -184,7 +198,9 @@ errs_ed <- ed_long %>%
   ungroup()
 
 
-ed_long  %>%
+gg_ed_temp <- ed_long  %>%
+  filter(wgt_fct %in% 1:2) %>%
+  mutate(wgt_fct = as_factor(wgt_fct)) %>%
   ggplot(aes(acs_frac, cces_frac)) +
   geom_abline(slope = 1, intercept = 0, linetype = "dashed", alpha = 0.5) +
   coord_equal() +
@@ -192,14 +208,12 @@ ed_long  %>%
   scale_color_viridis_d(end = 0.8) +
   scale_size_manual(values  = c("National" = 2, "State-by-State" = 0.3, "CD-by-CD" = 0.05)) +
   scale_alpha_manual(values = c("National" = 1, "State-by-State" = 1.0, "CD-by-CD" = 0.5)) +
-  scale_x_continuous(limits = c(0, 0.54), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
-  scale_y_continuous(limits = c(0, 0.54), breaks = seq(0, 0.5, 0.1), labels = percent_format(accuracy = 2)) +
+  scale_x_continuous(limits = c(0, 0.54), breaks = seq(0, 0.5, 0.25), labels = percent_format(accuracy = 1)) +
+  scale_y_continuous(limits = c(0, 0.54), breaks = seq(0, 0.5, 0.25), labels = percent_format(accuracy = 1)) +
   labs(x = "Proportion in Geography (Reported by ACS)",
        y = "CCES Estimate") +
   coord_capped_cart(bottom = "both", left = "both") +
   theme_classic() +
-  facet_rep_grid(weight_type ~ geo_fct, repeat.tick.labels = TRUE) +
-  geom_text(data = errs_ed, aes(x = 0.1, y = 0.4, label = txt), size = 3) +
   theme(plot.title = element_text(hjust = 0.5, face = "bold", size = 10),
         axis.title = element_text(size = 10),
         strip.text = element_text(face = "bold", size = 10),
@@ -210,6 +224,20 @@ ed_long  %>%
          color = guide_legend(title = "Education", nrow = 1, override.aes = list(size = 2))) +
   labs(caption = "Source: CCES 2018, ACS 1yr 2017. All CCES weighting uses YouGov's national weights, even for state/CD subsets in middle/right panels.
   CCES/ACS estimate the proportion of an education cell (6 combinations) per geography (1 nation, 50 states, or 435 CDs).")
-ggsave("figures/educfrac-comparisons.pdf", h = 5 + 1.2, w = 5*1.5 + 0.8)
 
+gg_ed_uw <-  gg_ed_temp +
+  facet_rep_grid(wgt_fct ~ geo_fct, repeat.tick.labels = TRUE) +
+  geom_text(data = mutate_if(filter(errs_ed, wgt_fct %in% 1:2), is.labelled, as_factor),
+            aes(x = 0.1, y = 0.4, label = txt), size = 3)
 
+ggsave("figures/educfrac-comparisons.pdf", gg_ed_uw, h = 5 + 1.2, w = 5*1.5)
+
+gg_ed_rim <- gg_ed_temp %+% as_factor(filter(ed_long, wgt_fct == 3))  +
+  facet_rep_grid( ~ geo_fct, repeat.tick.labels = TRUE) +
+  geom_text(data = as_factor(filter(errs_ed, wgt_fct %in% 3)),
+            aes(x = 0.1, y = 0.4, label = txt), size = 3) +
+  labs(caption = "CCES uses custom state-by-state rim weights.") +
+  guides(color = FALSE)
+ggsave("figures/educfrac-rim-comparisons.pdf", gg_ed_rim, h = 3, w = 2.5*3)
+
+x
