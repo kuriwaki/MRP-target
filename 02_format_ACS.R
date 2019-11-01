@@ -2,6 +2,10 @@ library(tidyverse)
 library(glue)
 library(labelled)
 
+vars <- read_rds("data/input/acs/variable-descriptions.Rds")
+pop_all <- read_rds("data/input/acs/by-all_acs_counts.Rds")
+pop_st <- read_rds("data/input/acs/by-st_acs_counts.Rds")
+pop_cd <- read_rds("data/input/acs/by-cd_acs_counts.Rds")
 
 # each user needs to get a Census key. See ??census_api_key
 # census_api_key("", install = TRUE)
@@ -31,20 +35,31 @@ educ_lbl <- setNames(1L:7L,
               "2-Year", "4-Year", "Post-Grad"))
 educ_lbl_cces <- setNames(1L:6L, names(educ_lbl)[2:7])
 
+
 # CCES lumps the first two
-cces_lbl <- tibble(cces_label = names(educ_lbl)[2:7],
+cces_edlbl <- tibble(cces_label = names(educ_lbl)[2:7],
                    educ = labelled(1:6L, educ_lbl_cces))
 
 educ_key  <- tibble(num = 1:7L,
                     educ_chr = replace(education, num ==  3L, "High school graduate (includes equivalency)"),
                     educ_fct = factor(names(educ_lbl), levels = names(educ_lbl))) %>%
   mutate(cces_label = as.character(fct_collapse(educ_fct, `No HS` = c("Less than 9", "No HS")))) %>%
-  left_join(cces_lbl, by = "cces_label") %>%
+  left_join(cces_edlbl, by = "cces_label") %>%
   select(-num)
 
 gender_key <- tibble(gender_chr = c("Male", "Female"),
                      gender = labelled(1:2L, c(Male = 1, Female = 2)))
 
+races <- c("White",
+           "Black",
+           "Hispanic",
+           "Asian",
+           "American Indian",
+           "Native Hawaiian",
+           "Other")
+race_key <- distinct(cc18, race) %>%
+  arrange(race) %>%
+  mutate(race_lbl = as.character(as_factor(race)))
 
 
 # Clean dataset as the combination of the two ----
@@ -70,7 +85,6 @@ clean_strat <- function(grp_tab, geo, codes = cell_vars) {
     select(year, geo, matches("(st|cd)"), gender, age, educ, everything())
 }
 
-
 all_frac <- group_by(pop_st, year, variable) %>%
   summarize(count = sum(count)) %>%
   clean_strat("nat")
@@ -79,6 +93,11 @@ us_frac <- pop_all %>%
   clean_strat("nat")
 st_frac <- clean_strat(group_by(pop_st, year, stid, state), "st")
 cd_frac <- clean_strat(group_by(pop_cd, year, cdid, cd), "cd")
+
+# Race marginals ---
+cd_frac
+
+
 
 
 # Save --

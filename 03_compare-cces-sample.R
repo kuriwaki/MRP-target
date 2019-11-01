@@ -86,10 +86,18 @@ fracs_wide <- bind_rows(zap_labels(cd_cell_compr),
 fracs_long <- fracs_wide %>%
   pivot_longer(cols = -c(geo:frac_geo),
                values_to = "cces_frac",
-               names_to  = "w_type",
+               names_to  = "weight_type",
                names_pattern = "cces_(frac|wfrac|sfrac)") %>%
   rename(frac_acs = frac_geo) %>%
-  mutate(weighted = w_type == "wfrac")
+  mutate(geo_fct = recode_factor(geo,
+                                 nat = "National",
+                                 st = "State-by-State",
+                                 cd = "CD-by-CD"),  # %>%
+         wgt_fct = to_labelled(
+           recode_factor(as.character(weight_type),
+                         `frac` = "Unweighted",
+                         `wfrac` = "YouGov weights",
+                         `sfrac` = "State-by-state rim weights")))
 
 pp <- unit_format(accuracy = 0.01, scale = 1e2, unit = "pp")
 errs <- fracs_long %>%
@@ -154,6 +162,7 @@ gg_s_cd <- gg_u_temp + aes(y = cces_sfrac) + geom_point(alpha = 0.2, size = 0.01
 gg_s_al + gg_s_st + gg_s_cd  + plot_layout(ncol = 3, byrow = FALSE) +
   plot_annotation(caption = "CCES uses custom state-by-state rim weights.")
 ggsave("figures/cellfrac-rim-comparisons.png", h = 3, w = 2.5*3)
+ggsave("figures/cellfrac-rim-comparisons.pdf", h = 3, w = 2.5*3)
 
 
 # education only ----
@@ -239,5 +248,3 @@ gg_ed_rim <- gg_ed_temp %+% as_factor(filter(ed_long, wgt_fct == 3))  +
   labs(caption = "CCES uses custom state-by-state rim weights.") +
   guides(color = FALSE)
 ggsave("figures/educfrac-rim-comparisons.pdf", gg_ed_rim, h = 3, w = 2.5*3)
-
-x

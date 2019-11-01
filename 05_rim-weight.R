@@ -2,6 +2,8 @@ library(tidyverse)
 library(iterake)
 library(foreach)
 library(haven)
+library(googlesheets)
+library(ddi)
 
 # data ----
 
@@ -11,6 +13,11 @@ cc18 <- read_rds("data/input/by-person_cces-2018.Rds") %>%
 cd_frac <- read_rds("data/output/by-CD_ACS_gender-age-education.Rds")
 st_frac <- read_rds("data/output/by-ST_ACS_gender-age-education.Rds")
 
+
+cd_clinton <- gs_read(gs_title("wasserman_2018-2016_CD")) %>%
+  mutate(clinton_2pty = (margin_clinton + 1)/2)
+
+data(g2016)
 
 # States ---------
 # year
@@ -43,7 +50,8 @@ for (st_i in u_stids) {
 
   df_wgt <- iterake(universe = uni,
                     max.iter = 100,
-                    max.wgt = 15, wgt.name = "weight_st")
+                    max.wgt = 15,
+                    wgt.name = "weight_st")
 
   w_df_st[, st_i] <- df_wgt$weight_st
 }
@@ -118,7 +126,8 @@ st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
     data = filter(cc18, state == st_i) %>% mutate_if(is.labelled, zap_labels),
     category(name = "gender", prop_i_gender$gender, targets = prop_i_gender$count, sum.1 = TRUE),
     category(name = "age", prop_i_age$age, targets = prop_i_age$count, sum.1 = TRUE),
-    category(name = "educ", prop_i_educ$educ, targets = prop_i_educ$count, sum.1 = TRUE)
+    category(name = "educ", prop_i_educ$educ, targets = prop_i_educ$count, sum.1 = TRUE),
+    category(name = "trump", prop_i_educ$educ, targets = prop_i_educ$count, sum.1 = TRUE)
     )
 
   df_wgt <- iterake(universe = uni,
