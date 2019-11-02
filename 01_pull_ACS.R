@@ -8,7 +8,17 @@ ages  <- c("18 to 24 years",
            "25 to 34 years",
            "35 to 44 years",
            "45 to 64 years",
-           "65 years and over")
+           "65 years and over",
+           "18 and 19 years",
+           "20 to 24 years",
+           "25 to 29 years",
+           "30 to 34 years",
+           "35 to 44 years",
+           "45 to 54 years",
+           "55 to 64 years",
+           "65 to 74 years",
+           "75 to 84 years",
+           "85 years and over")
 education <- c("Less than 9th grade",
                "9th to 12th grade, no diploma",
                "High school graduate \\(includes equivalency\\)",
@@ -16,7 +26,9 @@ education <- c("Less than 9th grade",
                "Associate's degree",
                "Bachelor's degree",
                "Graduate or professional degree")
-races <- c("White alone",
+races <- c("White alone, not Hispanic or Latino",
+           "White alone",
+           "Hispanic or Latino",
            "Black or African American alone",
            "American Indian and Alaska Native alone",
            "Asian alone",
@@ -26,6 +38,10 @@ races <- c("White alone",
            # "Two or more races!!Two races including Some other race",
            # "Two or more races!!Two races excluding Some other race, and three or more races"
 )
+
+ages_regex  <- as.character(glue("({str_c(ages, collapse = '|')})"))
+edu_regex   <- as.character(glue("({str_c(education, collapse = '|')})"))
+races_regex <- as.character(glue("({str_c(races, collapse = '|')})"))
 
 
 
@@ -47,45 +63,53 @@ cd_name <- function(vec, st_to_state = st_df) {
 vars_raw <- load_variables(2017, "acs1")
 
 vars <- vars_raw %>%
+  mutate(variable = name) %>%
+  separate(name, sep = "_", into = c("table", "num")) %>%
+  select(variable, table, concept, num, label, everything()) %>%
   filter(str_detect(label, "Total")) %>%
   mutate(label = str_remove(label, "Estimate!!Total")) %>%
   mutate(gender = str_extract(label, "(Male|Female)"),
-         age = str_extract(label, glue("({str_c(ages, collapse = '|')})")),
-         educ = str_extract(label, glue("({str_c(education, collapse = '|')})")),
-         race = str_extract(label, regex(glue("({str_c(races, collapse = '|')})"), ignore_case = TRUE)))
+         age = str_extract(label, ages_regex),
+         educ = str_extract(label, edu_regex),
+         race = coalesce(str_extract(label, regex(races_regex, ignore_case = TRUE)),
+                         str_extract(concept, regex(races_regex, ignore_case = TRUE))))
 
-vars %>%
-  count(race)
+# partition vars to pull
+edu_vars <- vars %>%
+  filter(!is.na(gender), !is.na(age), !is.na(educ)) %>%
+  filter(str_detect(table, "^B")) %>%
+  pull(variable)
 
-# select
-demog_vars <- str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0"))
-race_vars <- str_c("B03002_", str_pad(3:12, width = 3, side = "left", pad = "0")) # proper partition
+race_vars <- vars %>%
+  filter(str_detect(table, "B01001[A-I]")) %>%
+  filter(!is.na(gender), !is.na(age), !is.na(race)) %>%
+  pull(variable)
 
 
-# Pull all data ----
-
-std_acs <- function(df) {
-  df %>%
+# Easier ------
+std_acs <- function(tbl, var_df = vars) {
+  std_df <- tbl %>%
     filter(!str_detect(NAME, "Puerto Rico")) %>%
     rename(count = estimate,
            count_moe = moe)
+
+  inner_join(var_df, std_df, by = "variable") %>%
+    select(year, everything())
 }
 
+# Pull all data ----
 pop_cd <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   get_acs(geography = "congressional district",
           year = y,
           survey = "acs1",
-          variable = c(str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
-                       c("B03002_012", str_c("B02001_", str_pad(2:10, width = 3, pad =  "0", side = "left")))),
+          variable = c(edu_vars, race_vars),
           geometry = FALSE) %>%
     mutate(year = y)
 }  %>%
   std_acs() %>%
-  transmute(
-    year, variable,
+  mutate(
     cdid = GEOID,
-    cd = cd_name(NAME),
-    count, count_moe
+    cd = cd_name(NAME)
   )
 
 
@@ -93,25 +117,21 @@ pop_st <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   get_acs(geography = "state",
           year = y,
           survey = "acs1",
-          variable = c(str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
-                       c("B03002_012", str_c("B02001_", str_pad(2:10, width = 3, pad =  "0", side = "left")))),
+          variable = c(edu_vars, race_vars),
           geometry = FALSE) %>%
     mutate(year = y)
 }  %>%
   std_acs() %>%
-  transmute(
-    year, variable,
+  rename(
     stid = GEOID,
-    state = NAME,
-    count, count_moe
+    state = NAME
   )
 
 pop_all <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   get_acs(geography = "us",
           year = y,
           survey = "acs1",
-          variable = c(str_c("B15001_", str_pad(1:83, width = 3, side = "left", pad = "0")),
-                       c("B03002_012", str_c("B02001_", str_pad(2:10, width = 3, pad =  "0", side = "left")))),
+          variable = c(edu_vars, race_vars),
           geometry = FALSE) %>%
     mutate(year = y)
 } %>%
@@ -123,20 +143,3 @@ write_rds(pop_all, "data/input/acs/by-all_acs_counts.Rds")
 write_rds(pop_st, "data/input/acs/by-st_acs_counts.Rds")
 write_rds(pop_cd, "data/input/acs/by-cd_acs_counts.Rds")
 
-
-n17 <-  get_acs(geography = "us",
-                year = 2017,
-                survey = "acs1",
-                variable = c(race_vars, demog_vars))
-
-n17 %>%
-  filter(str_detect(variable, "B15001_001")) %>%
-  arrange(-estimate) %>%
-  pull(estimate) %>%
-  sum()
-
-pop_all %>%
-  filter(str_detect(variable, "B02001"), year == 2017) %>%
-  left_join(select(vars_raw, label, name), by = c("variable" = "name")) %>%
-  pull(label) %>%
-  dput()
