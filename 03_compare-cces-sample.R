@@ -25,10 +25,14 @@ compute_fracs <- function(grptbl) {
 
 
 cc18_raw <- read_rds("data/input/by-person_cces-2018.Rds")
-weights <- read_rds("data/output/weights-state.Rds")
-all_frac <- read_rds("data/output/by-national_ACS_gender-age-education.Rds")
-cd_frac <- read_rds("data/output/by-CD_ACS_gender-age-education.Rds")
-st_frac <- read_rds("data/output/by-ST_ACS_gender-age-education.Rds")
+weights  <- read_rds("data/output/weights-state.Rds")
+
+us_educ_frac <- read_rds("data/output/by-us_ACS_gender-age-education.Rds")
+cd_educ_frac <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
+st_educ_frac <- read_rds("data/output/by-st_ACS_gender-age-education.Rds")
+us_race_frac <- read_rds("data/output/by-us_ACS_gender-age-race.Rds")
+cd_race_frac <- read_rds("data/output/by-cd_ACS_gender-age-race.Rds")
+st_race_frac <- read_rds("data/output/by-st_ACS_gender-age-race.Rds")
 
 load("data/output/variable-labels.Rdata")
 
@@ -36,17 +40,21 @@ cc18 <- left_join(cc18_raw, weights, by = c("case_id", "weight"))
 
 
 # unweighted raw counts
-cc_u_all <- count(cc18, gender, age, educ, name = "cces_n")
-cc_u_st  <- count(cc18, state, gender, age, educ, name = "cces_n")
-cc_u_cd  <- count(cc18, cd, gender, age, educ, name = "cces_n")
+ccu_us_educ  <- count(cc18, gender, age, educ, name = "cces_n")
+ccu_st_educ  <- count(cc18, state, gender, age, educ, name = "cces_n")
+ccu_cd_educ  <- count(cc18, cd, gender, age, educ, name = "cces_n")
+
+ccu_us_race  <- count(cc18, gender, age, race, name = "cces_n")
+ccu_st_race  <- count(cc18, state, gender, race, educ, name = "cces_n")
+ccu_cd_race  <- count(cc18, cd, gender, age, race, name = "cces_n")
 
 # weighted versions
-cc_w_all <- count(cc18, gender, age, educ, name = "cces_wn", wt = weight)
+cc_w_us <- count(cc18, gender, age, educ, name = "cces_wn", wt = weight)
 cc_w_st <- count(cc18, state, gender, age, educ, name = "cces_wn", wt = weight)
 cc_w_cd <- count(cc18, cd, gender, age, educ, name = "cces_wn", wt = weight)
 
 # state weighted versions
-cc_s_all <- count(cc18, gender, age, educ, name = "cces_sn", wt = weight_st)
+cc_s_us <- count(cc18, gender, age, educ, name = "cces_sn", wt = weight_st)
 cc_s_st <- count(cc18, state, gender, age, educ, name = "cces_sn", wt = weight_st)
 cc_s_cd <- count(cc18, cd, gender, age, educ, name = "cces_sn", wt = weight_st)
 

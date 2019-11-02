@@ -27,7 +27,6 @@ education <- c("Less than 9th grade",
                "Bachelor's degree",
                "Graduate or professional degree")
 races <- c("White alone, not Hispanic or Latino",
-           "White alone",
            "Hispanic or Latino",
            "Black or African American alone",
            "American Indian and Alaska Native alone",
@@ -81,7 +80,7 @@ edu_vars <- vars %>%
   pull(variable)
 
 race_vars <- vars %>%
-  filter(str_detect(table, "B01001[A-I]")) %>%
+  filter(str_detect(table, "B01001[B-I]")) %>%
   filter(!is.na(gender), !is.na(age), !is.na(race)) %>%
   pull(variable)
 
