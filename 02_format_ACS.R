@@ -87,8 +87,8 @@ race_key <- tribble(
   2L, "Black", "BLACK OR AFRICAN AMERICAN ALONE",
   3L, "Hispanic", "HISPANIC OR LATINO",
   4L, "Asian", "ASIAN ALONE",
+  4L, "Asian", "NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE",
   5L, "Native American", "AMERICAN INDIAN AND ALASKA NATIVE ALONE",
-  5L, "Asian", "NATIVE HAWAIIAN AND OTHER PACIFIC ISLANDER ALONE",
   5L, "Mixed", "TWO OR MORE RACES",
   5L, "Other", "SOME OTHER RACE ALONE",
   5L, "Middle Eastern", NA,
@@ -139,8 +139,8 @@ clean_strat <- function(grp_tab, geo, codes = cell_vars) {
     summarize(count = sum(count)) %>% # count by somewhat coarser category
     ungroup() %>%
     left_join(sum_geo) %>%  # add totals
-    mutate(frac_geo = count / count_geo) %>%
-    filter(!is.na(frac_geo)) %>%
+    mutate(acs_frac = count / count_geo) %>%
+    filter(!is.na(acs_frac)) %>%
     mutate(geo = geo) %>%
     select(year, geo, matches("(st|cd)"), gender, age, matches("race|educ"), everything())
 }
@@ -159,7 +159,6 @@ st_educ_frac <- clean_strat(group_by(pop_st, year, stid, state), "st", educ_cell
 
 cd_race_frac <- clean_strat(group_by(pop_cd, year, cdid, cd), "cd", race_cells)
 cd_educ_frac <- clean_strat(group_by(pop_cd, year, cdid, cd), "cd", educ_cells)
-
 
 
 # Save --
