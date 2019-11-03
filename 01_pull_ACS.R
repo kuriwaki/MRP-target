@@ -108,7 +108,8 @@ pop_cd <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   std_acs() %>%
   mutate(
     cdid = GEOID,
-    cd = cd_name(NAME)
+    cd = cd_name(NAME),
+    count = replace_na(count, 0)
   )
 
 
@@ -124,7 +125,8 @@ pop_st <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   rename(
     stid = GEOID,
     state = NAME
-  )
+  ) %>%
+  mutate(count = replace_na(count, 0))
 
 pop_all <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   get_acs(geography = "us",
@@ -141,4 +143,19 @@ write_rds(vars, "data/input/acs/variable-descriptions.Rds")
 write_rds(pop_all, "data/input/acs/by-all_acs_counts.Rds")
 write_rds(pop_st, "data/input/acs/by-st_acs_counts.Rds")
 write_rds(pop_cd, "data/input/acs/by-cd_acs_counts.Rds")
+
+
+ky5 <- get_acs(geography = "congressional district",
+               state = "KY",
+               year = 2017,
+               survey = "acs1",
+               variable = c(race_vars),
+               geometry = FALSE) %>%
+  mutate(
+    cdid = GEOID,
+    cd = cd_name(NAME)
+    # count = replace_na(count, 0)
+  )
+
+view(ky5)
 
