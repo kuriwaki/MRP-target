@@ -4,6 +4,8 @@
 .Ruserdata
 .DS_Store
 data
+replication
+
 ## Core latex/pdflatex auxiliary files:
 *.aux
 *.lof
