@@ -7,11 +7,12 @@ library(ddi)
 
 # data ----
 
-cc18 <- read_rds("data/input/by-person_cces-2018.Rds") %>%
+cc18_uw <- read_rds("data/input/by-person_cces-2018.Rds") %>%
   mutate(g_a_e = str_c(gender, age, educ))
 
 cd_frac <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
-st_frac <- read_rds("data/output/by-st_ACS_gender-age-education.Rds")
+st_frac_educ <- read_rds("data/output/by-st_ACS_gender-age-education.Rds")
+st_frac_race <- read_rds("data/output/by-st_ACS_gender-age-race.Rds")
 
 
 # cd_clinton <- gs_read(gs_title("wasserman_2018-2016_CD")) %>%
@@ -21,7 +22,7 @@ data(g2016)
 
 # States ---------
 # year
-targets_st <- st_frac %>%
+targets_st <- st_frac_educ %>%
   filter(year == 2017)
 u_states <- unique(targets_st$state)
 u_stids  <- unique(targets_st$stid)
@@ -29,7 +30,7 @@ u_stids  <- unique(targets_st$stid)
 
 if (FALSE) {
 w_df_st <- matrix(NA,
-               nrow = nrow(cc18),
+               nrow = nrow(cc18_uw),
                ncol = length(u_stids),
                dimnames = list(NULL, u_stids)) %>%
   as_tibble()
@@ -42,7 +43,7 @@ for (st_i in u_stids) {
     mutate(g_a_e = str_c(gender, age, educ))
 
   uni <- universe(
-    data = cc18,
+    data = cc18_uw,
     category(
       name = "g_a_e",
       buckets = target_i$g_a_e,
@@ -101,35 +102,50 @@ for (dist_i in u_cdids) {
 } # end multicolumn weighting
 
 # state partitioned weights -----
-targets_st <- st_frac %>%
+tgt_st_educ <- st_frac_educ %>%
+  filter(year == 2017)
+tgt_st_race <- st_frac_race %>%
   filter(year == 2017)
 u_states <- unique(targets_st$state)
 u_stids  <- unique(targets_st$stid)
 
 # subset at each state ---
 st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
+  cc_i <- filter(cc18_uw, state == st_i) %>% mutate_if(is.labelled, zap_labels)
 
-  target_i <- targets_st %>%
+  tgt_edu_i <- tgt_st_educ %>%
+    filter(state == st_i) %>%
+    mutate_if(is.labelled, zap_labels)
+  tgt_race_i <- tgt_st_race %>%
     filter(state == st_i) %>%
     mutate_if(is.labelled, zap_labels)
 
-  prop_i_gender <- target_i %>%
+  prop_sex <- tgt_edu_i %>%
     group_by(gender) %>%
     summarize(count = sum(count))
 
-  prop_i_age <- target_i %>%
+  prop_age <- tgt_edu_i %>%
     group_by(age) %>%
     summarize(count = sum(count))
 
-  prop_i_educ <- target_i %>%
+  prop_edu <- tgt_edu_i %>%
     group_by(educ) %>%
     summarize(count = sum(count))
 
+  prop_rac <- tgt_race_i %>%
+    group_by(race) %>%
+    summarize(count = sum(count))
+
+  # adapt target if there's zero people of that race
+  race_i <- count(cc_i, race)
+  prop_rac <-  semi_join(prop_rac, race_i, by = "race")
+
   uni <- universe(
-    data = filter(cc18, state == st_i) %>% mutate_if(is.labelled, zap_labels),
-    category(name = "gender", prop_i_gender$gender, targets = prop_i_gender$count, sum.1 = TRUE),
-    category(name = "age", prop_i_age$age, targets = prop_i_age$count, sum.1 = TRUE),
-    category(name = "educ", prop_i_educ$educ, targets = prop_i_educ$count, sum.1 = TRUE)
+    data = cc_i,
+    category(name = "gender", prop_sex$gender, targets = prop_sex$count, sum.1 = TRUE),
+    category(name = "age",    prop_age$age,    targets = prop_age$count, sum.1 = TRUE),
+    category(name = "educ",   prop_edu$educ,   targets = prop_edu$count, sum.1 = TRUE),
+    category(name = "race",   prop_rac$race,   targets = prop_rac$count, sum.1 = TRUE)
     )
 
   df_wgt <- iterake(universe = uni,
@@ -141,12 +157,22 @@ st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
   select(df_wgt, case_id, weight, weight_st)
 }
 
-st_par_w %>%
-  ggplot(aes(weight, weight_st)) +
-  geom_point(size = 0.1) +
-  coord_equal()
-
 write_rds(st_par_w, "data/output/weights-state.Rds")
+
+cc18 %>%
+  left_join(st_par_w) %>%
+  filter(state == "Michigan") %>%
+  count(gender, wt = weight_st) %>%
+  mutate(frac = n / sum(n))
+
+targets_st %>%
+  filter(state == "Michigan") %>%
+  group_by(gender) %>%
+  summarize(n = sum(count)) %>%
+  ungroup() %>%
+  mutate(frac = n / sum(n))
+
+
 
 # long, store ------
 
