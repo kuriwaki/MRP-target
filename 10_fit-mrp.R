@@ -1,6 +1,8 @@
 library(tidyverse)
-library(brms)
 library(parallel)
+library(brms)
+library(fs)
+library(glue)
 
 resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
 cd_frac_educ <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
@@ -42,6 +44,7 @@ cd_binomial = wide_cces %>%
             ahca = sum(ahca, na.rm = TRUE),
             sanc = sum(sanc, na.rm = TRUE)) %>%
   arrange(desc(n_ahca)) %>%
+  filter(n_sanc > 0, n_ahca > 0) %>%
   ungroup()
 
 outcome_forms <- list(
@@ -56,10 +59,10 @@ outcome_forms <- list(
 
 for (i in length(outcome_forms)) {
 
-  fit = brm(outcome_forms[i],
+  fit = brm(outcome_forms[[i]],
             data = cd_binomial,
             family = "binomial",
-            cores = 2,
+            cores = 3,
             prior = set_prior("normal(0, 1)", class = "b") +
               set_prior("normal(0, 1)", class = "Intercept") +
               set_prior("normal(0, 1)", class = "sd"))
@@ -69,25 +72,3 @@ for (i in length(outcome_forms)) {
                  glue("by-cd_{names(outcome_forms)[i]}_g-a-e_brm.Rds")))
 }
 
-
-predicted_d = fitted(fit, newdata = cd_strat, allow_new_levels = TRUE, summary = FALSE)
-
-pstrat = function(df, predicted, ...) {
-  predicted_quo = rlang::enquo(predicted)
-  group_vars = rlang::enquos(...)
-
-  df %>%
-    group_by(!!!group_vars) %>%
-    summarize(!!predicted_quo := sum(!!predicted_quo * n / sum(n))) %>%
-    ungroup()
-}
-
-cd_df_ahca = mclapply(1:nrow(predicted_d), function(i) {
-  cd_strat %>%
-    mutate(predicted = (predicted_d[i, ] / n)) %>%
-    pstrat(predicted, state) %>%
-    mutate(rep = i)
-}, mc.cores = 4) %>%
-  bind_rows()
-
-write_rds(cd_df_ahca, "data/output/mrp/by-cd_ahca-estimates.Rds")
