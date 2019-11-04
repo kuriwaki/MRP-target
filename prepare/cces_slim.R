@@ -8,6 +8,8 @@ response <- readRDS(path(dir, "data/output/intermediate/by-response_response.Rds
 person   <- readRDS(path(dir, "data/output/intermediate/by-person_covariates.Rds")) %>%
   filter(year == 2018)
 
+load("data/output/variable-labels.Rdata")
+
 ages  <- c("18 to 24 years",
            "25 to 34 years",
            "35 to 44 years",
@@ -25,12 +27,18 @@ resp_18 <- inner_join(person, response, by = c("year", "case_id")) %>%
                              age %in% 45:64 ~ 4L,
                              age >=   65    ~ 5L,
                              TRUE ~ NA_integer_),
-         age = labelled(age_bin, age_lbl))
+         age = labelled(age_bin, age_lbl)) %>%
+  mutate(race = as.character(as_factor(race))) %>%
+  rename(race_cces_chr = race)
 
 cc18 <- resp_18 %>%
-  select(year:marstat) %>%
+  select(year:marstat, race_cces_chr) %>%
   distinct()
+
+cc18_race <- cc18 %>%
+  left_join(distinct(race_key, race_cces_chr, race))
+
 
 
 write_rds(resp_18, "data/input/by-question_cces-2018.Rds")
-write_rds(cc18, "data/input/by-person_cces-2018.Rds")
+write_rds(cc18_race, "data/input/by-person_cces-2018.Rds")
