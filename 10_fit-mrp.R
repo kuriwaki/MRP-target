@@ -4,7 +4,6 @@ library(parallel)
 
 resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
 cd_frac_educ <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
-st_frac_educ <- read_rds("data/output/by-st_ACS_gender-age-education.Rds")
 
 transform_vars <- function(tbl) {
   tbl %>%
@@ -22,10 +21,6 @@ wide_cces <- filter(resp_18, q_label == "AHCA") %>%
   transform_vars() %>%
   select(-gender) %>%
   left_join(sanc_cces)
-
-st_strat <- st_frac_educ %>%
-  transform_vars() %>%
-  rename(n = count_geo)
 
 cd_strat <- cd_frac_educ %>%
   transform_vars() %>%
@@ -95,5 +90,4 @@ cd_df_ahca = mclapply(1:nrow(predicted_d), function(i) {
 }, mc.cores = 4) %>%
   bind_rows()
 
-# write_rds(df_ahca, "data/output/mrp/by-state_ahca-estimates.Rds")
 write_rds(cd_df_ahca, "data/output/mrp/by-cd_ahca-estimates.Rds")
