@@ -13,11 +13,15 @@ transform_vars <- function(tbl) {
          age = as_factor(age))
 }
 
-ahca_cces <- filter(resp_18, q_label == "AHCA") %>%
-  filter(response %in% c("Y", "N")) %>%
+sanc_cces <- filter(resp_18, q_label == "WitholdSanctuaryFunding") %>%
+  mutate(sanc = as.integer(response == "Y")) %>%
+  select(case_id, sanc)
+
+wide_cces <- filter(resp_18, q_label == "AHCA") %>%
   mutate(ahca = as.integer(response == "Y")) %>%
   transform_vars() %>%
-  select(-gender)
+  select(-gender) %>%
+  left_join(sanc_cces)
 
 st_strat <- st_frac_educ %>%
   transform_vars() %>%
@@ -27,31 +31,49 @@ cd_strat <- cd_frac_educ %>%
   transform_vars() %>%
   rename(n = count_geo)
 
-st_binomial = ahca_cces %>%
+st_binomial = wide_cces %>%
   group_by(male, educ, age, st) %>%
-  summarise(n = n(),
-            ahca = sum(ahca)) %>%
-  arrange(desc(n)) %>%
+  summarise(n_ahca = sum(!is.na(ahca)),
+            n_sanc = sum(!is.na(sanc)),
+            ahca = sum(ahca, na.rm = TRUE),
+            sanc = sum(sanc, na.rm = TRUE)) %>%
+  arrange(desc(n_ahca)) %>%
   ungroup()
 
-cd_binomial = ahca_cces %>%
+cd_binomial = wide_cces %>%
   group_by(male, educ, age, cd) %>%
-  summarise(n = n(),
-            ahca = sum(ahca)) %>%
-  arrange(desc(n)) %>%
+  summarise(n_ahca = sum(!is.na(ahca)),
+            n_sanc = sum(!is.na(sanc)),
+            ahca = sum(ahca, na.rm = TRUE),
+            sanc = sum(sanc, na.rm = TRUE)) %>%
+  arrange(desc(n_ahca)) %>%
   ungroup()
 
-fit = brm(ahca | trials(n) ~ male +
-            (1 + male | cd)  + (1 + male | educ) + (1 + male | age) +
-            (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age),
-          data = cd_binomial,
-          family = "binomial",
-          cores = 2,
-          prior = set_prior("normal(0, 1)", class = "b") +
-            set_prior("normal(0, 1)", class = "Intercept") +
-            set_prior("normal(0, 1)", class = "sd"))
+outcome_forms <- list(
+  ahca = ahca | trials(n_ahca) ~ male +
+    (1 + male | cd)  + (1 + male | educ) + (1 + male | age) +
+    (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age),
+  sanc = sanc | trials(n_sanc) ~ male +
+    (1 + male | cd)  + (1 + male | educ) + (1 + male | age) +
+    (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)
+)
 
-write_rds(fit, "data/output/stan/by-cd_ahca_gender-age-educ_brm.Rds")
+
+for (i in length(outcome_forms)) {
+
+  fit = brm(outcome_forms[i],
+            data = cd_binomial,
+            family = "binomial",
+            cores = 2,
+            prior = set_prior("normal(0, 1)", class = "b") +
+              set_prior("normal(0, 1)", class = "Intercept") +
+              set_prior("normal(0, 1)", class = "sd"))
+
+  write_rds(fit,
+            path("data/output/stan",
+                 glue("by-cd_{names(outcome_forms)[i]}_g-a-e_brm.Rds")))
+}
+
 
 predicted_d = fitted(fit, newdata = cd_strat, allow_new_levels = TRUE, summary = FALSE)
 
