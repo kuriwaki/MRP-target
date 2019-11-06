@@ -14,61 +14,80 @@ transform_vars <- function(tbl) {
          age = as_factor(age))
 }
 
-sanc_cces <- filter(resp_18, q_label == "WitholdSanctuaryFunding") %>%
-  mutate(sanc = as.integer(response == "Y")) %>%
-  select(case_id, sanc)
+wide_18 <- resp_18 %>%
+  select(case_id, weight, cd, gender, age:marstat, q_label, response) %>%
+  pivot_wider(id_cols = case_id:marstat,
+              names_from = q_label,
+              values_from = response)
 
-wide_cces <- filter(resp_18, q_label == "AHCA") %>%
-  mutate(ahca = as.integer(response == "Y")) %>%
+wide_cces <- wide_18  %>%
   transform_vars() %>%
-  select(-gender) %>%
-  left_join(sanc_cces)
+  transmute(case_id,
+            cd, male, age, educ,
+            ahca = as.integer(AHCA == "Y"),
+            visa = as.integer(EndVisaLottery == "Y"),
+            budg = as.integer(BudgetBipartisan == "Y"),
+            immr = as.integer(ImmigrationRyan == "Y"),
+            tcja = as.integer(TaxCutJobsAct == "Y"),
+            sanc = as.integer(WitholdSanctuaryFunding == "Y"))
 
 cd_strat <- cd_frac_educ %>%
   transform_vars() %>%
   rename(n = count_geo)
 
-st_binomial = wide_cces %>%
-  group_by(male, educ, age, st) %>%
-  summarise(n_ahca = sum(!is.na(ahca)),
-            n_sanc = sum(!is.na(sanc)),
-            ahca = sum(ahca, na.rm = TRUE),
-            sanc = sum(sanc, na.rm = TRUE)) %>%
-  arrange(desc(n_ahca)) %>%
-  ungroup()
-
-cd_binomial = wide_cces %>%
+cd_binomial <- wide_cces %>%
   group_by(male, educ, age, cd) %>%
-  summarise(n_ahca = sum(!is.na(ahca)),
-            n_sanc = sum(!is.na(sanc)),
-            ahca = sum(ahca, na.rm = TRUE),
-            sanc = sum(sanc, na.rm = TRUE)) %>%
-  arrange(desc(n_ahca)) %>%
-  filter(n_sanc > 0, n_ahca > 0) %>%
+  summarise(
+    n_ahca  = sum(!is.na(ahca)),
+    n_visa  = sum(!is.na(visa)),
+    n_budg  = sum(!is.na(budg)),
+    n_immr  = sum(!is.na(immr)),
+    n_tcja  = sum(!is.na(tcja)),
+    n_sanc  = sum(!is.na(sanc)),
+    ahca = sum(ahca, na.rm = TRUE),
+    visa = sum(visa, na.rm = TRUE),
+    budg = sum(budg, na.rm = TRUE),
+    immr = sum(immr, na.rm = TRUE),
+    tcja = sum(tcja, na.rm = TRUE),
+    sanc = sum(sanc, na.rm = TRUE)
+    ) %>%
   ungroup()
 
-outcome_forms <- list(
-  ahca = ahca | trials(n_ahca) ~ male +
-    (1 + male | cd)  + (1 + male | educ) + (1 + male | age) +
-    (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age),
-  sanc = sanc | trials(n_sanc) ~ male +
-    (1 + male | cd)  + (1 + male | educ) + (1 + male | age) +
-    (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)
-)
+ff_base <- "ahca = ahca | trials(n_ahca) ~ male +
+  (1 + male | cd)  + (1 + male | educ) + (1 + male | age) +
+  (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
 
-for (i in length(outcome_forms)) {
+outcomes <- c("ahca", "sanc", "immr", "tcja", "budg", "visa")
 
-  fit = brm(outcome_forms[[i]],
-            data = cd_binomial,
+
+fit_outcome <- function(outcome = outcomes, data = cd_binomial, base_formula = ff_base){
+  var <- enquo(outcome)
+  var_name <- quo_name(var)
+  nvar_name <- str_c("n_", var_name)
+
+  ff_outcome <- as.formula(str_replace_all(base_formula, "ahca", outcome))
+
+  data_nzero <- data %>%
+    filter(!!sym(nvar_name) != 0)
+
+  fit <- brm(ff_outcome,
+            data = data_nzero,
             family = "binomial",
-            cores = 3,
+            cores = 4,
+            seed = 02138,
             prior = set_prior("normal(0, 1)", class = "b") +
               set_prior("normal(0, 1)", class = "Intercept") +
               set_prior("normal(0, 1)", class = "sd"))
 
-  write_rds(fit,
-            path("data/output/stan",
-                 glue("by-cd_{names(outcome_forms)[i]}_g-a-e_brm.Rds")))
+  write_rds(fit, path("data/output/stan", glue("by-cd_{outcome}_g-a-e_brm.Rds")))
+  write_rds(data_nzero, path("data/output/stan", glue("by-cd_{outcome}_g-a-e_df.Rds")))
 }
+
+fit_outcome("immr")
+fit_outcome("tcja")
+fit_outcome("budj")
+fit_outcome("visa")
+fit_outcome("sanc")
+fit_outcome("ahca")
 
