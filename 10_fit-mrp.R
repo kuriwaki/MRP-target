@@ -84,10 +84,10 @@ fit_outcome <- function(outcome = outcomes, data = cd_binomial, base_formula = f
   write_rds(data_nzero, path("data/output/stan", glue("by-cd_{outcome}_g-a-e_df.Rds")))
 }
 
-fit_outcome("immr")
-fit_outcome("tcja")
-fit_outcome("budj")
+fit_outcome("budg")
 fit_outcome("visa")
-fit_outcome("sanc")
-fit_outcome("ahca")
+# fit_outcome("ahca")
+# fit_outcome("sanc")
+# fit_outcome("immr")
+# fit_outcome("tcja")
 
