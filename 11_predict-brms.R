@@ -1,7 +1,7 @@
 library(tidyverse)
 library(foreach)
 library(brms)
-library(doParallel)
+library(glue)
 
 
 # copy from 10 --
@@ -28,33 +28,41 @@ cd_strat_raw <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
 
 
 # model ---
-fit <- read_rds("data/output/stan/by-cd_sanc_g-a-e_brm.Rds")
+outcomes <- c("ahca", "sanc", "budg", "immr", "visa", "tcja")
 
-# prediced ----
-cd_strat <- fit %>%
-  rename(n_sanc = count) %>%
-  filter(n_sanc > 0)
 
-# wide predictions
-p_draws <- fitted(fit,
-                  newdata = cd_strat,
-                  allow_new_levels = TRUE,
-                  summary = FALSE)
+for (y in outcomes) {
+  var_name <- glue("n_{y}")
 
-cell_mean <- colMeans(p_draws)
-cell_median <- apply(p_draws, 2, median)
-cell_p025  <- apply(p_draws, 2, quantile, 0.025)
-cell_p975  <- apply(p_draws, 2, quantile, 0.975)
+  fit <- read_rds(glue("data/output/stan/by-cd_{y}_g-a-e_brm.Rds"))
 
-var_stats <- tibble(
-  i = 1:ncol(p_draws),
-  mean = cell_mean,
-  median = cell_median,
-  p025 = cell_p025,
-  p975 = cell_p975
-)
+  # prediced ----
+  cd_strat <- cd_strat_raw %>%
+    filter(count > 0) %>%
+    rename(!!sym(var_name) := count)
 
-cd_preds <- bind_cols(cd_strat, var_stats) %>%
-  rename(count = n_sanc)
+  # wide predictions
+  p_draws <- fitted(fit,
+                    newdata = cd_strat,
+                    allow_new_levels = TRUE,
+                    summary = FALSE)
 
-write_rds(cd_preds, "data/output/by-cell_sanc_g-a-e_brm-preds.Rds")
+  cell_mean   <- colMeans(p_draws)
+  cell_median <- apply(p_draws, 2, median)
+  cell_p025   <- apply(p_draws, 2, quantile, 0.025)
+  cell_p975   <- apply(p_draws, 2, quantile, 0.975)
+
+  var_stats <- tibble(
+    i = 1:ncol(p_draws),
+    mean = cell_mean,
+    median = cell_median,
+    p025 = cell_p025,
+    p975 = cell_p975
+  )
+
+  cd_preds <- bind_cols(cd_strat, var_stats) %>%
+    rename(count = n_sanc)
+
+  write_rds(cd_preds,
+            glue("data/output/by-cell_{y}_g-a-e_brm-preds.Rds"))
+}
