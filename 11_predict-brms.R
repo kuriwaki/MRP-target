@@ -1,7 +1,7 @@
 library(tidyverse)
 library(foreach)
 library(brms)
-library(doParallel)
+library(glue)
 
 
 # copy from 10 --
@@ -28,29 +28,41 @@ cd_strat_raw <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
 
 
 # model ---
-fit <- read_rds("data/output/stan/by-cd_sanc_g-a-e_brm.Rds")
-
-# prediced
-cd_strat <- cd_strat_raw %>%
-  rename(n_sanc = count) %>%
-  filter(n_sanc > 0)
+outcomes <- c("ahca", "sanc", "budg", "immr", "visa", "tcja")
 
 
-#  melt all predictions into long
-pred_cell_i <- function(i, model = fit, strat = cd_strat) {
-  p_i <- as.vector(fitted(model,
-                          newdata = strat[i, ],
-                          allow_new_levels = TRUE,
-                          summary = FALSE))
-  tribble(
-    ~var, ~mean, ~median, ~sd, ~p025, ~p975, ~N,
-    i, mean(p_i), median(p_i), sd(p_i),
-    quantile(p_i, 0.025), quantile(p_i, 0.975),
-    strat$count_geo[i]
+for (y in outcomes) {
+  var_name <- glue("n_{y}")
+
+  fit <- read_rds(glue("data/output/stan/by-cd_{y}_g-a-e_brm.Rds"))
+
+  # prediced ----
+  cd_strat <- cd_strat_raw %>%
+    filter(count > 0) %>%
+    rename(!!sym(var_name) := count)
+
+  # wide predictions
+  p_draws <- fitted(fit,
+                    newdata = cd_strat,
+                    allow_new_levels = TRUE,
+                    summary = FALSE)
+
+  cell_mean   <- colMeans(p_draws)
+  cell_median <- apply(p_draws, 2, median)
+  cell_p025   <- apply(p_draws, 2, quantile, 0.025)
+  cell_p975   <- apply(p_draws, 2, quantile, 0.975)
+
+  var_stats <- tibble(
+    i = 1:ncol(p_draws),
+    mean = cell_mean,
+    median = cell_median,
+    p025 = cell_p025,
+    p975 = cell_p975
   )
+
+  cd_preds <- bind_cols(cd_strat, var_stats) %>%
+    rename(count = n_sanc)
+
+  write_rds(cd_preds,
+            glue("data/output/by-cell_{y}_g-a-e_brm-preds.Rds"))
 }
-
-preds_sum <- mclapply(1:nrow(cd_strat), pred_cell_i, mc.cores = 4) %>% bind_rows()
-
-
-write_rds(cd_df_sanc, "data/output/mrp/by-cd_sanc-estimates.Rds")
