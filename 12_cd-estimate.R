@@ -1,40 +1,55 @@
 library(tidyverse)
 library(lemon)
+library(fs)
+library(glue)
 library(corrr)
+library(foreach)
 library(scales)
-library(patchwork)
 
-cd_phat <- read_rds("data/output/by-cell_sanc_g-a-e_brm-preds.Rds")
+# copy from 10 --
+transform_vars <- function(tbl) {
+  tbl %>%
+    mutate(male = -0.5 + 1 * (as_factor(gender) == "Male"),
+           educ = as_factor(educ),
+           age = as_factor(age))
+}
+
+
+
+
+
 resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
+new_wts <- read_rds("data/output/weights-state.Rds")
+cd_strat_all <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
+  transform_vars()
 
-cd_mrp <- cd_phat %>%
-  group_by(cd) %>%
-  summarize(p_mrp = sum(mean)/sum(count))
-
-cd_raw <- resp_18 %>%
+cd_weighted <- resp_18 %>%
+  left_join(select(new_wts, case_id, weight_st), by = "case_id") %>%
   group_by(q_label, cd) %>%
   summarize(p_raw = mean(response == "Y", na.rm = TRUE),
-           p_wgt = weighted.mean(response == "Y", weight, na.rm = TRUE),
-           n = n())
+            p_yg = weighted.mean(response == "Y", weight, na.rm = TRUE),
+            p_st = weighted.mean(response == "Y", weight_st, na.rm = TRUE),
+            n = n())
 
-cd_sanc <- cd_raw %>%
-  filter(q_label == "WitholdSanctuaryFunding")
 
-## compare
-gg_df <- cd_mrp %>%
-  left_join(cd_sanc)
+outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc")
+cces_names <- setNames(c("AHCA", "BudgetBipartisan", "ImmigrationRyan",  "EndVisaLottery",
+                         "TaxCutJobsAct", "WitholdSanctuaryFunding"), nm = outcomes)
 
-gg_temp <- gg_df %>%
-  ggplot(aes(p_raw, p_wgt)) +
-  geom_abline(intercept = 0, slope = 1, linetype = "dashed") +
-  scale_x_continuous(limits = c(0, 1), labels = percent) +
-  scale_y_continuous(limits = c(0, 1), labels = percent) +
-  geom_point(alpha = 0.25) +
-  coord_equal() +
-  theme_classic()
+cces_cd <- foreach(y = outcomes, .combine = "bind_rows") %do% {
 
-sc_raw_wgt <- gg_temp + labs(x = "Raw Means", y = "Weighted")
-sc_raw_mrp <- gg_temp + aes(p_raw, p_mrp) + labs(x = "Raw Means", y = "MRP")
-sc_wgt_mrp <- gg_temp + aes(p_wgt, p_mrp) + labs(x = "Weighted", y = "MRP")
+  ests <- dir_ls(glue("data/output/cells/{y}"))
+  cd_phat <- foreach(cd = ests, .combine = "bind_rows") %do% {read_rds(cd)}
+  df_phat <- left_join(cd_strat_all, cd_phat, by = c("cd", "age", "educ", "male"))
 
-sc_raw_wgt + sc_raw_mrp + sc_wgt_mrp
+  cd_mrp <- df_phat %>%
+    mutate(q_label = cces_names[y]) %>%
+    filter(!is.na(mean)) %>%
+    group_by(q_label, cd) %>%
+    summarize(p_mrp = sum(mean)/sum(count))
+
+  inner_join(cd_weighted, cd_mrp) %>%
+    select(q_label, cd, n, matches("p_"))
+}
+
+write_rds(cces_cd, "data/output/by-cd-issue_all-estimates.Rds")
