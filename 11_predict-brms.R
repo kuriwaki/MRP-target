@@ -28,7 +28,7 @@ cd_strat_raw <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
 
 
 # model ---
-outcomes <- c("ahca", "sanc", "budg", "immr", "visa", "tcja")
+outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc")
 
 
 for (y in outcomes) {
@@ -39,7 +39,7 @@ for (y in outcomes) {
   # prediced ----
   cd_strat <- cd_strat_raw %>%
     filter(count > 0) %>%
-    rename(!!sym(var_name) := count)
+    mutate(!!sym(var_name) := count)
 
   # wide predictions
   p_draws <- fitted(fit,
@@ -61,7 +61,7 @@ for (y in outcomes) {
   )
 
   cd_preds <- bind_cols(cd_strat, var_stats) %>%
-    rename(count = n_sanc)
+    select(-!!sym(var_name))
 
   write_rds(cd_preds,
             glue("data/output/by-cell_{y}_g-a-e_brm-preds.Rds"))
