@@ -15,8 +15,8 @@ transform_vars <- function(tbl) {
 }
 
 wide_18 <- resp_18 %>%
-  select(case_id, weight, cd, gender, age:marstat, q_label, response) %>%
-  pivot_wider(id_cols = case_id:marstat,
+  select(case_id, weight, cd, gender, age:marstat, vv_turnout_gvm, q_label, response) %>%
+  pivot_wider(id_cols = case_id:vv_turnout_gvm,
               names_from = q_label,
               values_from = response)
 
@@ -29,7 +29,8 @@ wide_cces <- wide_18  %>%
             budg = as.integer(BudgetBipartisan == "Y"),
             immr = as.integer(ImmigrationRyan == "Y"),
             tcja = as.integer(TaxCutJobsAct == "Y"),
-            sanc = as.integer(WitholdSanctuaryFunding == "Y"))
+            sanc = as.integer(WitholdSanctuaryFunding == "Y"),
+            turn = as.integer(vv_turnout_gvm == "Voted"))
 
 cd_strat <- cd_frac_educ %>%
   transform_vars() %>%
@@ -44,12 +45,14 @@ cd_binomial <- wide_cces %>%
     n_immr  = sum(!is.na(immr)),
     n_tcja  = sum(!is.na(tcja)),
     n_sanc  = sum(!is.na(sanc)),
+    n_turn = sum(!is.na(turn)),
     ahca = sum(ahca, na.rm = TRUE),
     visa = sum(visa, na.rm = TRUE),
     budg = sum(budg, na.rm = TRUE),
     immr = sum(immr, na.rm = TRUE),
     tcja = sum(tcja, na.rm = TRUE),
-    sanc = sum(sanc, na.rm = TRUE)
+    sanc = sum(sanc, na.rm = TRUE),
+    turn = sum(turn, na.rm = TRUE)
     ) %>%
   ungroup()
 
@@ -58,10 +61,10 @@ ff_base <- "ahca = ahca | trials(n_ahca) ~ male +
   (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
 
-outcomes <- c("ahca", "sanc", "immr", "tcja", "budg", "visa")
+outcomes <- c("ahca", "sanc", "immr", "tcja", "budg", "visa", "turn")
 
 
-fit_outcome <- function(outcome = outcomes, data = cd_binomial, base_formula = ff_base){
+fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd = 1){
   var <- enquo(outcome)
   var_name <- quo_name(var)
   nvar_name <- str_c("n_", var_name)
@@ -74,20 +77,24 @@ fit_outcome <- function(outcome = outcomes, data = cd_binomial, base_formula = f
   fit <- brm(ff_outcome,
             data = data_nzero,
             family = "binomial",
-            cores = 4,
+            cores = 2,
             seed = 02138,
-            prior = set_prior("normal(0, 1)", class = "b") +
-              set_prior("normal(0, 1)", class = "Intercept") +
-              set_prior("normal(0, 1)", class = "sd"))
+            prior = set_prior(str_c("normal(0, ", sd, ")"), class = "b") +
+              set_prior(str_c("normal(0, ", sd, ")"), class = "Intercept") +
+              set_prior(str_c("normal(0, ", sd, ")"), class = "sd"))
 
-  write_rds(fit, path("data/output/stan", glue("by-cd_{outcome}_g-a-e_brm.Rds")))
-  write_rds(data_nzero, path("data/output/stan", glue("by-cd_{outcome}_g-a-e_df.Rds")))
+  write_rds(fit, path("data/output/stan", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_brm.Rds")))
+  write_rds(data_nzero, path("data/output/stan", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_df.Rds")))
 }
 
-fit_outcome("budg")
-fit_outcome("visa")
-fit_outcome("ahca")
-fit_outcome("sanc")
-fit_outcome("immr")
-fit_outcome("tcja")
+# fit_outcome("sanc")
+# fit_outcome("budg")
+# fit_outcome("visa")
+# fit_outcome("ahca")
+# fit_outcome("immr")
+# fit_outcome("tcja")
+# fit_outcome("turn", sd = 1)
+# fit_outcome("turn", sd = 2)
+# fit_outcome("turn", sd = 5)
+fit_outcome("turn", sd = 10)
 
