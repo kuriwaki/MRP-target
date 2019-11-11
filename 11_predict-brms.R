@@ -32,44 +32,46 @@ cd_strat_raw <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
 outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc")
 
 
-for (y in outcomes) {
-  gc()
-  var_name <- glue("n_{y}")
+for (y in c("turn")) {
+  for (sd in c("01", "02", "05")) {
+    gc()
+    var_name <- glue("n_{y}")
 
-  fit <- read_rds(glue("data/output/stan/by-cd_{y}_g-a-e_brm.Rds"))
+    fit <- read_rds(glue("data/output/stan/sd-{sd}/by-cd_{y}_g-a-e_brm.Rds"))
 
-  # prediced ----
-  all_strat <- cd_strat_raw %>%
-    filter(count > 0) %>%
-    mutate(!!sym(var_name) := count) %>%
-    select(cd, male, age, educ, matches("n_"))
+    # prediced ----
+    all_strat <- cd_strat_raw %>%
+      filter(count > 0) %>%
+      mutate(!!sym(var_name) := count) %>%
+      select(cd, male, age, educ, matches("n_"))
 
-  # wide predictions by CD
-  for (cd_i in unique(all_strat$cd)) {
-    cd_strat <- filter(all_strat, cd == cd_i)
+    # wide predictions by CD
+    for (cd_i in unique(all_strat$cd)) {
+      cd_strat <- filter(all_strat, cd == cd_i)
 
-    p_draws <- fitted(fit,
-                      newdata = cd_strat,
-                      allow_new_levels = TRUE,
-                      summary = FALSE)
+      p_draws <- fitted(fit,
+                        newdata = cd_strat,
+                        allow_new_levels = TRUE,
+                        summary = FALSE)
 
-    cell_mean   <- colMeans(p_draws)
-    cell_median <- apply(p_draws, 2, median)
-    cell_p025   <- apply(p_draws, 2, quantile, 0.025)
-    cell_p975   <- apply(p_draws, 2, quantile, 0.975)
+      cell_mean   <- colMeans(p_draws)
+      cell_median <- apply(p_draws, 2, median)
+      cell_p025   <- apply(p_draws, 2, quantile, 0.025)
+      cell_p975   <- apply(p_draws, 2, quantile, 0.975)
 
-    var_stats <- tibble(
-      i = 1:ncol(p_draws),
-      mean = cell_mean,
-      median = cell_median,
-      p025 = cell_p025,
-      p975 = cell_p975
-    )
+      var_stats <- tibble(
+        i = 1:ncol(p_draws),
+        mean = cell_mean,
+        median = cell_median,
+        p025 = cell_p025,
+        p975 = cell_p975
+      )
 
-    cd_preds <- bind_cols(cd_strat, var_stats) %>%
-      select(-!!sym(var_name))
+      cd_preds <- bind_cols(cd_strat, var_stats) %>%
+        select(-!!sym(var_name))
 
-    write_rds(cd_preds,
-            glue("data/output/cells/{y}/{cd_i}_gae_brm-preds.Rds"))
+      write_rds(cd_preds,
+                glue("data/output/cells/sd-{sd}/{y}/{cd_i}_gae_brm-preds.Rds"))
+    }
   }
 }

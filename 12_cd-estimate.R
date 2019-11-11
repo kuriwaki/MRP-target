@@ -23,7 +23,15 @@ new_wts <- read_rds("data/output/weights-state.Rds")
 cd_strat_all <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
   transform_vars()
 
+stack_turn <- resp_18 %>%
+  select(year:vv_turnout_pvm) %>%
+  distinct() %>%
+  mutate(q_label = "Turnout") %>%
+  mutate(response = as.character(recode(vv_turnout_gvm, Voted = "Y", `No Record Of Voting` = "N")))
+
+
 cd_weighted <- resp_18 %>%
+  bind_rows(stack_turn) %>%
   left_join(select(new_wts, case_id, weight_st), by = "case_id") %>%
   group_by(q_label, cd) %>%
   summarize(p_raw = mean(response == "Y", na.rm = TRUE),
@@ -32,13 +40,17 @@ cd_weighted <- resp_18 %>%
             n = n())
 
 
-outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc")
+outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc", "turn")
 cces_names <- setNames(c("AHCA", "BudgetBipartisan", "ImmigrationRyan",  "EndVisaLottery",
-                         "TaxCutJobsAct", "WitholdSanctuaryFunding"), nm = outcomes)
+                         "TaxCutJobsAct", "WitholdSanctuaryFunding", "Turnout"), nm = outcomes)
 
-cces_cd <- foreach(y = outcomes, .combine = "bind_rows") %do% {
+sd <- c("01", "02", "05")[1]
+cells_all <- dir_ls(glue("data/output/cells/sd-{sd}"), recurse = TRUE)
+outcomes_s <- unique(str_extract(cells_all, str_c("(", str_c(outcomes, collapse = "|"), ")")))
 
-  ests <- dir_ls(glue("data/output/cells/{y}"))
+cces_cd <- foreach(y = outcomes_s, .combine = "bind_rows") %do% {
+
+  ests <- dir_ls(glue("data/output/cells/sd-{sd}/{y}"))
   cd_phat <- foreach(cd = ests, .combine = "bind_rows") %do% {read_rds(cd)}
   df_phat <- left_join(cd_strat_all, cd_phat, by = c("cd", "age", "educ", "male"))
 
@@ -52,4 +64,4 @@ cces_cd <- foreach(y = outcomes, .combine = "bind_rows") %do% {
     select(q_label, cd, n, matches("p_"))
 }
 
-write_rds(cces_cd, "data/output/by-cd-issue_all-estimates.Rds")
+write_rds(cces_cd, glue("data/output/by-cd-issue_all-estimates_sd-{sd}.Rds"))
