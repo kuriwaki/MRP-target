@@ -5,6 +5,7 @@
 .DS_Store
 data
 replication
+figures
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
