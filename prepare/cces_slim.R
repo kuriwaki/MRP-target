@@ -1,4 +1,5 @@
 library(tidyverse)
+library(haven)
 library(fs)
 
 # Data -------
@@ -32,7 +33,7 @@ resp_18 <- inner_join(person, response, by = c("year", "case_id")) %>%
   rename(race_cces_chr = race)
 
 cc18 <- resp_18 %>%
-  select(year:marstat, race_cces_chr) %>%
+  select(year:marstat, vv_turnout_gvm, race_cces_chr) %>%
   distinct()
 
 cc18_race <- cc18 %>%
