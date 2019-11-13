@@ -1,6 +1,6 @@
 library(tidyverse)
 library(parallel)
-library(brms)
+library(rstanarm)
 library(fs)
 library(glue)
 
@@ -56,12 +56,12 @@ cd_binomial <- wide_cces %>%
     ) %>%
   ungroup()
 
-ff_base <- "ahca = ahca | trials(n_ahca) ~ male +
+ff_base <- "cbind(ahca, n_ahca - ahca) ~ male +
   (1 + male | cd)  + (1 + male | educ) + (1 + male | age) +
   (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
 
-outcomes <- c("ahca", "sanc", "immr", "tcja", "budg", "visa", "turn")
+outcomes <- c("turn", "ahca", "sanc", "immr", "tcja", "budg", "visa")
 
 
 fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd = 1){
@@ -70,31 +70,29 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
   nvar_name <- str_c("n_", var_name)
 
   ff_outcome <- as.formula(str_replace_all(base_formula, "ahca", outcome))
-
+  print(ff_outcome)
   data_nzero <- data %>%
     filter(!!sym(nvar_name) != 0)
 
-  fit <- brm(ff_outcome,
-            data = data_nzero,
-            family = "binomial",
-            cores = 2,
-            seed = 02138,
-            prior = set_prior(str_c("normal(0, ", sd, ")"), class = "b") +
-              set_prior(str_c("normal(0, ", sd, ")"), class = "Intercept") +
-              set_prior(str_c("normal(0, ", sd, ")"), class = "sd"))
+  fit <- stan_glmer(ff_outcome,
+                    data = data_nzero,
+                    family = binomial,
+                    chains = 4,
+                    cores = 4,
+                    seed = 02138)
 
-  write_rds(fit, path("data/output/stan", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_brm.Rds")))
-  write_rds(data_nzero, path("data/output/stan", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_df.Rds")))
+  write_rds(fit, path("data/output/stan_glmer", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_brm.Rds")))
+  write_rds(data_nzero, path("data/output/stan_glmer", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_df.Rds")))
 }
 
-# fit_outcome("sanc")
-# fit_outcome("budg")
-# fit_outcome("visa")
-# fit_outcome("ahca")
-# fit_outcome("immr")
-# fit_outcome("tcja")
-# fit_outcome("turn", sd = 1)
+fit_outcome("turn", sd = 1)
 # fit_outcome("turn", sd = 2)
 # fit_outcome("turn", sd = 5)
-fit_outcome("turn", sd = 10)
+fit_outcome("sanc")
+fit_outcome("ahca")
+# fit_outcome("budg")
+# fit_outcome("visa")
+# fit_outcome("immr")
+# fit_outcome("tcja")
+# fit_outcome("turn", sd = 10)
 
