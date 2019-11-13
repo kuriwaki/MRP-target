@@ -228,8 +228,9 @@ gg_cell_temp <- fracs_long_edcell  %>%
 
 gg_cell_educ <- gg_cell_temp +
   facet_rep_grid(wgt_fct ~ geo_fct, repeat.tick.labels = TRUE) +
-  geom_text(data = mutate_if(filter(errs_edcell, wgt_fct %in% c("Unweighted", "YouGov weights")), is.labelled, as_factor),
+  geom_text(data = filter(errs_edcell, wgt_fct %in% c("Unweighted", "YouGov weights")),
             aes(x = 0.08, y = 0.02, label = txt), size = 3)
+# North Dakota        gender 2     age 2     educ 5  0.0316     0.129
 
 ggsave("figures/cellfrac-comparisons.pdf", gg_cell_educ, h = 5 + 1.2, w = 5*1.5 + 0.8)
 ggsave("figures/cellfrac-comparisons.png", gg_cell_educ, h = 5 + 1.2, w = 5*1.5 + 0.8)
