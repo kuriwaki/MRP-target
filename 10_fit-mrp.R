@@ -79,6 +79,10 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
                     family = binomial,
                     chains = 4,
                     cores = 4,
+                    prior_PD = TRUE,
+                    prior = normal(location = 0, scale = sd),
+                    prior_intercept = normal(location = 0, scale = sd),
+                    prior_aux = normal(location = 0, scale = sd),
                     seed = 02138)
 
   write_rds(fit, path("data/output/stan_glmer", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_brm.Rds")))
@@ -86,10 +90,10 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
 }
 
 fit_outcome("turn", sd = 1)
-# fit_outcome("turn", sd = 2)
-# fit_outcome("turn", sd = 5)
-fit_outcome("sanc")
-fit_outcome("ahca")
+fit_outcome("turn", sd = 2)
+fit_outcome("turn", sd = 5)
+# fit_outcome("sanc")
+# fit_outcome("ahca")
 # fit_outcome("budg")
 # fit_outcome("visa")
 # fit_outcome("immr")
