@@ -8,6 +8,10 @@ dir <- "~/Dropbox/CCES_representation/"
 response <- readRDS(path(dir, "data/output/intermediate/by-response_response.Rds"))
 person   <- readRDS(path(dir, "data/output/intermediate/by-person_covariates.Rds")) %>%
   filter(year == 2018)
+cc18_all <- read_dta("~/Dropbox/cces_cumulative/data/source/cces/2018_cc.dta")
+
+citizen <- cc18_all %>%
+  transmute(case_id = as.integer(caseid), citizen = cit1)
 
 load("data/output/variable-labels.Rdata")
 
@@ -37,6 +41,7 @@ cc18 <- resp_18 %>%
   distinct()
 
 cc18_race <- cc18 %>%
+  left_join(citizen) %>%
   left_join(distinct(race_key, race_cces_chr, race))
 
 
