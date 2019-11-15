@@ -62,7 +62,7 @@ cces_names <- setNames(c("AHCA", "BudgetBipartisan", "ImmigrationRyan",  "EndVis
                          "TaxCutJobsAct", "WitholdSanctuaryFunding", "Turnout"), nm = outcomes)
 
 sd <- c("default", "01", "02", "05")[4]
-cells_all <- dir_ls(glue("data/output/cd-estimates/sd-{sd}"), recurse = TRUE)
+cells_all <- dir_ls(glue("data/output/cd-estimates/stan_glmer/sd-{sd}"), recurse = TRUE)
 outcomes_s <- unique(str_extract(cells_all, str_c("(", str_c(outcomes, collapse = "|"), ")")))
 
 
