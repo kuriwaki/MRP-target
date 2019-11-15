@@ -4,24 +4,7 @@ library(brms)
 library(glue)
 library(fs)
 
-
-# copy from 10 --
-transform_vars <- function(tbl) {
-  tbl %>%
-    mutate(male = -0.5 + 1 * (as_factor(gender) == "Male"),
-           educ = as_factor(educ),
-           age = as_factor(age))
-}
-
-pstrat = function(df, predicted, ...) {
-  predicted_quo = rlang::enquo(predicted)
-  group_vars = rlang::enquos(...)
-
-  df %>%
-    group_by(!!!group_vars) %>%
-    summarize(!!predicted_quo := sum(!!predicted_quo * n / sum(n))) %>%
-    ungroup()
-}
+source("00_functions.R")
 
 # data ---
 cd_strat_raw <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
@@ -33,11 +16,11 @@ cd_strat_raw <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
 outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc", "turn")
 
 
-for (sd in c("default", "01", "02", "05")[1]) {
+for (sd in c("default", "01", "02", "05")) {
   cellfiles <- dir_ls(glue("data/output/stan_glmer/sd-{sd}"), recurse = TRUE)
   outcomes_s <- unique(str_extract(cellfiles, str_c("(", str_c(outcomes, collapse = "|"), ")")))
 
-  for (y in "turn") { #c(outcomes_s)) {
+  for (y in "turn") {
     var_name <- glue("n_{y}")
 
     fit <- read_rds(glue("data/output/stan_glmer/sd-{sd}/by-cd_{y}_g-a-e_glmer.Rds"))
@@ -69,7 +52,7 @@ for (sd in c("default", "01", "02", "05")[1]) {
         summarize(p_mrp = sum(value*.data[[var_name]]) / sum(.data[[var_name]]))
 
       write_rds(cd_est,
-                glue("data/output/cd-estimates/stan_glmer/sd-{sd}/{y}/{cd_i}_gae_brm-preds.Rds"))
+                glue("data/output/cd-estimates/stan_glmer/sd-{sd}/{y}/{cd_i}_gae_glmer-preds.Rds"))
     }
   }
 }

@@ -23,3 +23,21 @@ cd_name <- function(vec, st_to_state = st_df) {
 
   return(as.character(glue("{st}-{distnum}")))
 }
+
+
+transform_vars <- function(tbl) {
+  tbl %>%
+    mutate(male = -0.5 + 1 * (as_factor(gender) == "Male"),
+           educ = as_factor(educ),
+           age = as_factor(age))
+}
+
+pstrat = function(df, predicted, ...) {
+  predicted_quo = rlang::enquo(predicted)
+  group_vars = rlang::enquos(...)
+
+  df %>%
+    group_by(!!!group_vars) %>%
+    summarize(!!predicted_quo := sum(!!predicted_quo * n / sum(n))) %>%
+    ungroup()
+}

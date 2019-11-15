@@ -61,15 +61,15 @@ outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc", "turn")
 cces_names <- setNames(c("AHCA", "BudgetBipartisan", "ImmigrationRyan",  "EndVisaLottery",
                          "TaxCutJobsAct", "WitholdSanctuaryFunding", "Turnout"), nm = outcomes)
 
-sd <- c("01", "02", "05")[2]
-cells_all <- dir_ls(glue("data/output/cells/sd-{sd}"), recurse = TRUE)
+sd <- c("default", "01", "02", "05")[4]
+cells_all <- dir_ls(glue("data/output/cd-estimates/sd-{sd}"), recurse = TRUE)
 outcomes_s <- unique(str_extract(cells_all, str_c("(", str_c(outcomes, collapse = "|"), ")")))
 
 
 # Add mrp
 cces_cd <- foreach(y = "turn", .combine = "bind_rows") %do% {
 
-  ests <- dir_ls(glue("data/output/cells/sd-{sd}/{y}"))
+  ests <- dir_ls(glue("data/output/cd-estimates/stan_glmer/sd-{sd}/{y}"))
   cd_phat <- foreach(cd = ests, .combine = "bind_rows") %do% {read_rds(cd)}
 
   cd_mrp <- cd_phat %>%
@@ -85,4 +85,4 @@ cces_cd <- foreach(y = "turn", .combine = "bind_rows") %do% {
     select(q_label, cd, matches("n_"), matches("p_"), matches("se_"))
 }
 
-write_rds(cces_cd, glue("data/output/by-cd-issue_all-estimates_sd-{sd}.Rds"))
+write_rds(cces_cd, glue("data/output/by-cd_glmer_sd-{sd}.Rds"))
