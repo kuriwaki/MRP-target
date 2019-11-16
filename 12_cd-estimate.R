@@ -61,7 +61,7 @@ outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc", "turn")
 cces_names <- setNames(c("AHCA", "BudgetBipartisan", "ImmigrationRyan",  "EndVisaLottery",
                          "TaxCutJobsAct", "WitholdSanctuaryFunding", "Turnout"), nm = outcomes)
 
-sd <- c("default", "01", "02", "05")[4]
+for (sd in c("default", "01", "02", "05")) {
 cells_all <- dir_ls(glue("data/output/cd-estimates/stan_glmer/sd-{sd}"), recurse = TRUE)
 outcomes_s <- unique(str_extract(cells_all, str_c("(", str_c(outcomes, collapse = "|"), ")")))
 
@@ -86,3 +86,4 @@ cces_cd <- foreach(y = "turn", .combine = "bind_rows") %do% {
 }
 
 write_rds(cces_cd, glue("data/output/by-cd_glmer_sd-{sd}.Rds"))
+}
