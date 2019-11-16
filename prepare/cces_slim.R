@@ -22,10 +22,12 @@ ages  <- c("18 to 24 years",
            "65 years and over")
 age_lbl <- setNames(1:5L, ages)
 
+
 resp_18 <- inner_join(person, response, by = c("year", "case_id")) %>%
+  left_join(citizen) %>%
   select_if(~any(!is.na(.x))) %>%
   select(year:weight, state:dist, matches("pid3"),
-         gender:marstat, matches("vv"), qID:response) %>%
+         gender:marstat, citizen, matches("vv"), qID:response) %>%
   mutate(age_bin = case_when(age %in% 18:24 ~ 1L,
                              age %in% 25:34 ~ 2L,
                              age %in% 35:44 ~ 3L,
@@ -37,11 +39,10 @@ resp_18 <- inner_join(person, response, by = c("year", "case_id")) %>%
   rename(race_cces_chr = race)
 
 cc18 <- resp_18 %>%
-  select(year:marstat, vv_turnout_gvm, race_cces_chr) %>%
+  select(year:marstat, citizen, vv_turnout_gvm, race_cces_chr) %>%
   distinct()
 
 cc18_race <- cc18 %>%
-  left_join(citizen) %>%
   left_join(distinct(race_key, race_cces_chr, race))
 
 
