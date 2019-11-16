@@ -30,7 +30,7 @@ u_stids  <- unique(targets_st$stid)
 
 
 # subset at each state, and go state by state ---
-large_states <- c("California", "Texas", "Florida", "New York", "Pennsylvania")
+large_states <- count(cc18_uw, state, sort = TRUE) %>% pull(state) %>% .[1:7]
 
 st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
 
