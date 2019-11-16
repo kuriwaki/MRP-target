@@ -3,46 +3,13 @@ library(foreach)
 library(glue)
 library(tidycensus)
 
+source("00_functions.R")
+
 # Codes (currently duplicate with 02_format) ---
-ages  <- c("18 to 24 years",
-           "25 to 34 years",
-           "35 to 44 years",
-           "45 to 64 years",
-           "65 years and over",
-           "18 and 19 years",
-           "20 to 24 years",
-           "25 to 29 years",
-           "30 to 34 years",
-           "35 to 44 years",
-           "45 to 54 years",
-           "55 to 64 years",
-           "65 to 74 years",
-           "75 to 84 years",
-           "85 years and over")
-education <- c("Less than 9th grade",
-               "9th to 12th grade, no diploma",
-               "High school graduate \\(includes equivalency\\)",
-               "Some college, no degree",
-               "Associate's degree",
-               "Bachelor's degree",
-               "Graduate or professional degree")
-races <- c("White alone, not Hispanic or Latino",
-           "Hispanic or Latino",
-           "Black or African American alone",
-           "American Indian and Alaska Native alone",
-           "Asian alone",
-           "Native Hawaiian and Other Pacific Islander alone",
-           "Some other race alone",
-           "Two or more races" #,
-           # "Two or more races!!Two races including Some other race",
-           # "Two or more races!!Two races excluding Some other race, and three or more races"
-)
 
 ages_regex  <- as.character(glue("({str_c(ages, collapse = '|')})"))
 edu_regex   <- as.character(glue("({str_c(education, collapse = '|')})"))
 races_regex <- as.character(glue("({str_c(races, collapse = '|')})"))
-
-
 
 # Prep -----
 
@@ -77,7 +44,7 @@ race_vars <- vars %>%
 # Easier ------
 
 # Pull all data ----
-pop_cd <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
+pop_cd <- foreach(y = 2017, .combine = "bind_rows") %do% {
   get_acs(geography = "congressional district",
           year = y,
           survey = "acs1",
@@ -93,7 +60,7 @@ pop_cd <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   )
 
 
-pop_st <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
+pop_st <- foreach(y = 2017, .combine = "bind_rows") %do% {
   get_acs(geography = "state",
           year = y,
           survey = "acs1",
@@ -108,7 +75,7 @@ pop_st <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
   ) %>%
   mutate(count = replace_na(count, 0))
 
-pop_all <- foreach(y = 2012:2017, .combine = "bind_rows") %do% {
+pop_all <- foreach(y = 2017, .combine = "bind_rows") %do% {
   get_acs(geography = "us",
           year = y,
           survey = "acs1",
@@ -124,18 +91,4 @@ write_rds(pop_all, "data/input/acs/by-all_acs_counts.Rds")
 write_rds(pop_st, "data/input/acs/by-st_acs_counts.Rds")
 write_rds(pop_cd, "data/input/acs/by-cd_acs_counts.Rds")
 
-
-ky5 <- get_acs(geography = "congressional district",
-               state = "KY",
-               year = 2017,
-               survey = "acs1",
-               variable = c(race_vars),
-               geometry = FALSE) %>%
-  mutate(
-    cdid = GEOID,
-    cd = cd_name(NAME)
-    # count = replace_na(count, 0)
-  )
-
-view(ky5)
 
