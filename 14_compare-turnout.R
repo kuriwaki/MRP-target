@@ -18,7 +18,7 @@ name_models <- function(string) {
 }
 
 # Data ----
-cces_cd  <- read_rds("data/output/by-cd-issue_all-estimates_sd-02.Rds")
+cces_cd  <- read_rds("data/output/by-cd_glmer_sd-05.Rds")
 cd_votes <- read_rds("data/output/by-cd_CVAP-turnout.Rds")
 
 # Melted versions
@@ -66,7 +66,7 @@ cvg_cd <- cd_df %>%
 cd_bind <- left_join(rmse_cd, bias_cd, by = c("q_label", "model")) %>%
   left_join(avgbias_cd) %>%
   left_join(cvg_cd) %>%
-  transmute(q_label, model, txt = str_c(rmse_txt, "\n", mad_txt, "\n", replace_na(cvg_txt, "")))
+  transmute(q_label, model, txt = str_c(rmse_txt, "\n", mad_txt, "\n", bias_txt,   "\n", replace_na(cvg_txt, "")))
 
 
 ggplot(cd_df, aes(turnout_cvap, p)) +

@@ -36,16 +36,18 @@ resp_18 <- inner_join(person, response, by = c("year", "case_id")) %>%
                              TRUE ~ NA_integer_),
          age = labelled(age_bin, age_lbl)) %>%
   mutate(race = as.character(as_factor(race))) %>%
-  rename(race_cces_chr = race)
+  rename(race_cces_chr = race) %>%
+  rename(cces_label = educ) %>%
+  mutate(cces_label = as.character(as_factor(cces_label)))
 
 cc18 <- resp_18 %>%
-  select(year:marstat, citizen, vv_turnout_gvm, race_cces_chr) %>%
+  select(year:marstat, citizen, vv_turnout_gvm, race_cces_chr, cces_label) %>%
   distinct()
 
-cc18_race <- cc18 %>%
-  left_join(distinct(race_key, race_cces_chr, race))
-
+cc18_fmt <- cc18 %>%
+  left_join(distinct(race_key, race_cces_chr, race), by = "race_cces_chr") %>%
+  left_join(distinct(select(educ_key, cces_label, educ)), by = "cces_label")
 
 
 write_rds(resp_18, "data/input/by-question_cces-2018.Rds")
-write_rds(cc18_race, "data/input/by-person_cces-2018.Rds")
+write_rds(cc18_fmt, "data/input/by-person_cces-2018.Rds")
