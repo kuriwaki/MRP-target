@@ -16,7 +16,7 @@ cd_strat_raw <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%
 outcomes <- c("ahca", "budg", "immr", "visa", "tcja", "sanc", "turn")
 
 
-for (sd in c("default", "01", "02", "05")) {
+for (sd in c("hanretty", "01", "default")) {
   cellfiles <- dir_ls(glue("data/output/stan_glmer/sd-{sd}"), recurse = TRUE)
   outcomes_s <- unique(str_extract(cellfiles, str_c("(", str_c(outcomes, collapse = "|"), ")")))
 
@@ -32,7 +32,11 @@ for (sd in c("default", "01", "02", "05")) {
       select(cd, male, age, educ, matches("n_"))
 
     # wide predictions by CD
-    for (cd_i in unique(all_strat$cd)) {
+    cds_loop <- unique(all_strat$cd)
+    if (sd == "hanretty")
+      cds_loop <- cds_loop[-str_which(cds_loop, "(CA|TX|AK|AL)")]
+
+    for (cd_i in cds_loop) {
       cd_strat <- filter(all_strat, cd == cd_i)
 
       # no longer works with stan_glmer
@@ -52,7 +56,7 @@ for (sd in c("default", "01", "02", "05")) {
         summarize(p_mrp = sum(value*.data[[var_name]]) / sum(.data[[var_name]]))
 
       write_rds(cd_est,
-                glue("data/output/cd-estimates/stan_glmer/sd-{sd}/{y}/{cd_i}_gae_glmer-preds.Rds"))
+                glue("data/output/CDs/stan_glmer/sd-{sd}/{y}/{cd_i}_gae_glmer-preds.Rds"))
     }
   }
 }
