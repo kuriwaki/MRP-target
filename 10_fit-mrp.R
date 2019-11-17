@@ -116,3 +116,4 @@ fit_outcome("turn", sd = "default")
 # fit_outcome("turn", sd = 5)
 
 # plot(fit, "hist", pars = c("(Intercept)", "male", "cd CA-40"))
+

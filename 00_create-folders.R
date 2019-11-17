@@ -11,7 +11,7 @@ dir_create("data/output/CDs")
 dir_create("data/output/reg")
 
 
-for (output in c("CDs")) {
+for (output in c("CDs", "reg")) {
   for (model in c("stan_glmer", "brms")) {
     for (sd in c("01", "02", "05", "10", "default", "hanretty")) {
       for (outcome in c("turn", "ahca", "sanc"))
