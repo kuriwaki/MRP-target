@@ -71,25 +71,37 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
   data_nzero <- data %>%
     filter(!!sym(nvar_name) != 0)
 
-  if (sd != "default") {
+  if (is.numeric(sd)) {
     fit <- stan_glmer(ff_outcome,
                       data = data_nzero,
                       family = binomial,
-                      chains = 4,
-                      cores = 4,
-                      prior_PD = TRUE,
                       prior = normal(location = 0, scale = sd),
                       prior_intercept = normal(location = 0, scale = sd),
                       prior_aux = normal(location = 0, scale = sd),
+                      chains = 4,
+                      cores = 4,
+                      prior_PD = FALSE,
                       seed = 02138)
   }
+  if (sd == "hanretty") {
+    fit <- stan_glmer(ff_outcome,
+                      data = data_nzero,
+                      family = binomial,
+                      prior_intercept = rstanarm::student_t(5, 0, 10, autoscale = FALSE),
+                      prior = rstanarm::student_t(5, 0, 2.5, autoscale = FALSE),
+                      chains = 4,
+                      cores = 4,
+                      prior_PD = FALSE,
+                      seed = 02138)
+  }
+
   if (sd == "default") {
     fit <- stan_glmer(ff_outcome,
                       data = data_nzero,
                       family = binomial,
                       chains = 4,
                       cores = 4,
-                      prior_PD = TRUE,
+                      prior_PD = FALSE,
                       seed = 02138)
   }
 
@@ -97,8 +109,11 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
   write_rds(data_nzero, path("data/output/stan_glmer", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_df.Rds")))
 }
 
-fit_outcome("turn", sd = "default")
+fit_outcome("turn", sd = "hanretty")
 fit_outcome("turn", sd = 1)
-fit_outcome("turn", sd = 2)
-fit_outcome("turn", sd = 5)
+fit_outcome("turn", sd = "default")
+# fit_outcome("turn", sd = 2)
+# fit_outcome("turn", sd = 5)
+
+# plot(fit, "hist", pars = c("(Intercept)", "male", "cd CA-40"))
 
