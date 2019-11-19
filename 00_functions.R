@@ -41,7 +41,7 @@ std_acs <- function(tbl, var_df = vars) {
     rename(count = estimate,
            count_moe = moe)
 
-  inner_join(var_df, std_df, by = "variable") %>%
+  left_join(std_df, var_df, by = "variable") %>%
     select(year, everything())
 }
 
@@ -51,9 +51,13 @@ std_acs <- function(tbl, var_df = vars) {
 st_df <- tibble(st = state.abb, state = state.name) %>%
   add_row(st = "DC", state = "District of Columbia")
 
+
+#' get CD format
 cd_name <- function(vec, st_to_state = st_df) {
-  distnum <- vec %>% str_extract("([0-9]+|at Large)") %>%
-    str_replace("at Large", "1")
+  distnum <- vec %>%
+    str_extract("([0-9]+|at Large)") %>%
+    str_replace("at Large", "1") %>%
+    str_pad(width = 2, pad = "0")
   cong <- vec %>% str_extract("1[01][0-9]")
   states <- vec %>% str_extract("(?<=,\\s)[A-z\\s]+")
   st <- map_chr(states, function(x) st_to_state$st[x == st_to_state$state])
