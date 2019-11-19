@@ -21,7 +21,7 @@ cd_cvap_tc <- get_acs(geography = "congressional district",
   std_acs() %>%
   transmute(cd = cd_name(NAME),
             variable = variable,
-            tc_count = count)
+            cvap_count = count)
 
 cd_vap <- pop_cd %>%
   filter(year == 2017) %>%
@@ -47,10 +47,8 @@ cd_votes <- elec %>%
             totalvotes = totalvotes) %>%
   left_join(cd_cvap_tc, by = "cd") %>%
   left_join(cd_vap, by = "cd") %>%
-  mutate(turnout_cvap = totalvotes / tc_count,
+  mutate(turnout_cvap = totalvotes / cvap_count,
          turnout_vap = totalvotes / vap_count)
-
-
 
 
 # save ---
