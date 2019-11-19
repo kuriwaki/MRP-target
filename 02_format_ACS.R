@@ -98,6 +98,12 @@ race_key <- tribble(
   mutate(race = labelled(race_5, my_racelbl))
 race_key
 
+educ_key2 <- educ_key %>%
+  mutate(
+    educ_chr = replace(educ_chr, educ_chr == "9th to 12th grade no diploma", "9th to 12th grade, no diploma"),
+    educ_chr = replace(educ_chr, educ_chr == "Some college no degree", "Some college, no degree")
+  )
+
 
 # Clean dataset as the combination of the two ----
 educ_cells <- vars %>%
@@ -105,7 +111,7 @@ educ_cells <- vars %>%
   rename(gender_chr = gender, age_chr = age, educ_chr = educ) %>%
   left_join(gender_key, by = "gender_chr") %>%
   left_join(age5_key, by = "age_chr") %>%
-  left_join(educ_key, by = "educ_chr") %>%
+  left_join(educ_key2, by = "educ_chr") %>%
   select(variable, gender, age, educ)
 
 race_cells <- vars %>%
