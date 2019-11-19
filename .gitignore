@@ -6,6 +6,11 @@
 data
 replication
 figures
+errors
+reference
+
+*.pdf
+questions.md
 
 ## Core latex/pdflatex auxiliary files:
 *.aux
