@@ -7,7 +7,7 @@ load("data/output/variable-labels.Rdata")
 age5_key
 
 acs17 <- read_dta("data/input/ipums/acs2017.dta") %>%
-  filter(citizen == 0, age >= 18)
+  filter(age >= 18)
 
 
 count(acs17, age) %>%
@@ -46,15 +46,22 @@ acs_r_g_a_e <- acs_g_a_e %>%
     race %in% 1 & hispan == 0 ~ 1L, # "White",
     race %in% 2 & hispan == 0 ~ 2L, # "Black",
     hispan > 0 ~ 3L, # "Hispanic",
-    race %in% 400:599 & hispan == 0 ~ 4L, # "Asian",
+    race %in% 4:6 & hispan == 0 ~ 4L, # "Asian",
     TRUE ~ 5L, # "All Other"
   )) %>%
   rename(race_acs = race) %>%
   left_join(select(race_key, race_5, race))
 
-acs_17_slim <- acs_g_a_e %>%
+acs_17_slim <- acs_r_g_a_e %>%
   mutate(state = str_to_title(as_factor(stateicp)),
          state = recode(state, `District Of Columbia` = "District of Columbia")) %>%
-  select(year, perwt, state, age, educ, gender, race)
+  select(year, perwt, state, citizen, age, educ, gender, race) %>%
+  mutate(citizen = as.integer(citizen %in% 0:2))
 
 write_rds(acs_17_slim, "data/input/cleaned_acs17.Rds")
+
+acs_17_tx <- acs_17_slim %>%
+  filter(state == "Texas")
+
+acs_17_tx %>%
+  write_rds("data/output/cces/sample-TX/acs_2017-TX.Rds")

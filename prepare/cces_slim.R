@@ -46,7 +46,8 @@ cc18 <- resp_18 %>%
 
 cc18_fmt <- cc18 %>%
   left_join(distinct(race_key, race_cces_chr, race), by = "race_cces_chr") %>%
-  left_join(distinct(select(educ_key, cces_label, educ)), by = "cces_label")
+  left_join(distinct(select(educ_key, cces_label, educ)), by = "cces_label") %>%
+  mutate(cd = as.character(glue("{st}-{str_pad(dist, width = 2, pad = '0')}")))
 
 
 write_rds(resp_18, "data/input/by-question_cces-2018.Rds")
