@@ -17,7 +17,28 @@ In this memo I explore how representative CCES samples are at subnational geogra
 
 Multi-level post-stratification (MRP) methods take another route, whereby the targets for granular joint distributions are computed first so that they can be combined to any preferred level of aggregation for the post-stratification step. However, MRP has several limitations. First, often times analysts only have marginal, not joint distributions at the level they care about. Second, one MRP model is specific to one outcome, so comparing more than one issue question would involve building as many multi-level models as there are outcomes. In contrast, once post-stratification weights are defined, it can be used for any sets of outcomes. 
 
+\section{Post-stratification Weights and MRP}
+
+Each method has its pros and cons, sumarized by the following table:
+
+\begin{table}[!h]
+\centering
+\small
+\begin{tabularx}{0.9\linewidth}{p{5cm}XX}
+\toprule\\
+& Weighting & MRP \\\midrule
+Applying to different outcomes & Easy & Hard, need one model per outcome\\
+Applying to different subgroups & Hard, need to create one set of weights for each target geography & Easy\\
+Pools Observations from different geographies? & Usually no & Yes\\
+Key Modeling Assumptions & The selection model & The outcome model \\
+\\\bottomrule
+\end{tabularx}
+\end{table}
+
+
 \section*{Setup}
+
+The goal of the rest of this memo is to doucment how weighting affects the distribution of covariates at different sub-gegoraphies. I do not discuss MRP here --- this is because the joint distributions of the covariates that are availble are matched exactly by construction, and the worry for MRP is about the outcome model, not the weighting model.
 
 The ACS and CCES collect the following shared variables about their respondents. There is some difference in question wording or lumping categories, but here for simplicity I use the most common denominator.
 
@@ -132,7 +153,7 @@ Do weights that are specifically targeted to match on the state-specific moments
 \centering
 \caption{Representativeness with custom state-by-state rim weights \label{fig:rim-comparisons}}
 \includegraphics[width = \textwidth]{figures/educfrac-rim-comparisons.pdf}
-\includegraphics[width = \textwidth]{figures/cellfrac-rim-comparisons.pdf}
+\includegraphics[width = \textwidth]{figures/cellfrac-rim-comparisons.png}
 \end{figure}
 
 
