@@ -15,7 +15,7 @@ races_regex <- as.character(glue("({str_c(races, collapse = '|')})"))
 
 
 # get vars ----
-vars_raw <- load_variables(2017, "acs5")
+vars_raw <- load_variables(2017, "acs1")
 
 vars <- vars_raw %>%
   mutate(variable = name) %>%
@@ -75,7 +75,7 @@ pop_st <- foreach(y = 2017, .combine = "bind_rows") %do% {
   ) %>%
   mutate(count = replace_na(count, 0))
 
-pop_all <- foreach(y = 2017, .combine = "bind_rows") %do% {
+pop_us <- foreach(y = 2017, .combine = "bind_rows") %do% {
   get_acs(geography = "us",
           year = y,
           survey = "acs1",
@@ -87,7 +87,7 @@ pop_all <- foreach(y = 2017, .combine = "bind_rows") %do% {
 
 
 write_rds(vars, "data/input/acs/variable-descriptions.Rds")
-write_rds(pop_all, "data/input/acs/by-all_acs_counts.Rds")
+write_rds(pop_us, "data/input/acs/by-us_acs_counts.Rds")
 write_rds(pop_st, "data/input/acs/by-st_acs_counts.Rds")
 write_rds(pop_cd, "data/input/acs/by-cd_acs_counts.Rds")
 
