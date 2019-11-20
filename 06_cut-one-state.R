@@ -26,10 +26,10 @@ cc18_df <- left_join(cc18_raw, weights, by = c("case_id", "weight")) %>%
          turnout = as.integer(vv_turnout_gvm == "Voted"),
          sanc = recode(sanc, Y = 1L, N = 0L),
          vv_turnout_gvm = NULL) %>%
-  left_join(select(cd_descrip, cd, trump)) %>%
+  left_join(select(cd_descrip, cd, pct_trump)) %>%
   select(year, case_id, weight_us = weight, weight_st, state, cd, dist,
          gender, age, educ, race, citizen, pid3, pid3_leaner, faminc, marstat,
-         trump_vshare_cd = trump,
+         trump_vshare_cd = pct_trump,
          turnout, sanc)
 
 
@@ -92,8 +92,10 @@ for validation and comparison to some ground truth. The other are Yes/No issue
 questions. I chose the 'withold funding to sanctuary cities' one (`sanc`).
 
 Ground-truth turnout (`cd-stats_2018-TX.Rds`) is tricky because the denominator is unclear. Instead of
-registered or eligible voters, I recommend using CVAP (citizen voting age population)
-as a denominator. There are two numerators, votes for the US House (`ush_*`) and
+registered or eligible voters, I recommend using VAP (voting age population) or
+CVAP (citizen voting age population) as a denominator. CVAP is used more than
+VAP inp practice, but I coul only get VAP for post-stratificatin cells.
+There are two numerators, votes for the US House (`ush_*`) and
 _estimated_ votes for the US Senate (`sen_`). The Senate is more desirable because
 it was the top of the ticket office and it was contested everywhere.  Unfortunately,
 I don't have the turnout at the CD-level, so I assume a uniform shift and estimate the
@@ -101,11 +103,22 @@ Senate numerator of each district to be a fraction of the total votes cast in Se
 as a fraction of the House votes. This dataset also includes information about the
 voteshare of Trump, Romney, and McCain, as well as handy placenames.
 
+
 I also attached the ACS-calibrarted counts for Texas 2017. Each dataset is a
 partition of the adult population in Texas in 2017. In each table,  `count` is the
 number of people in each cell as determined by ACS.  There are 4 tables, 2 (by-state,
 and by-CD) times 2(gender x age x education partition and gender x age x race
 partition).
+
+
+`turnout-ests_by-cd.Rds` lists various survey estimates from simple weighted data and
+MRP. The MRP model I estimate is using age, education, gender, and CD-level Trump voteshare
+(rescaled to mean 0). I do not exclude citizens. I then post-stratify to the VAP
+cell counts from the ACS. `tunrout-ests_by-respondent.Rds` are the predicted probabilities
+of success from the stan_glmer model (posterior means from 4000 draws). Therefore,
+they are basically the predicted values of the demographic cells before they get post-stratified.
+case_id is the unique identifier for CCES.
+
 " %>%
   str_replace_all("(?<=[\\.a-z1-9])\n", " ") %>%
   write_lines("data/output/cces/sample-TX/README.md")

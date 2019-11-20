@@ -16,7 +16,7 @@ pres_kos <- read_excel("data/input/dailykos/by-cd_pres.xlsx", skip = 1) %>%
 
 
 cd_df <- pres_kos %>%
-  select(cd, incumbent, inc_party = party, trump, romney, mccain) %>%
+  select(cd, incumbent, inc_party = party, pct_trump = trump, pct_romney = romney, pct_mccain = mccain) %>%
   left_join(select(placenames, cd, descrip = geographic_description, place = largest_place))
 
 
