@@ -45,7 +45,7 @@ p_est <- svy_obs %>%
 
 n_eff <- svy_obs %>%
   summarize(n_raw = sum(!is.na(response)),
-            n_yg  = sum(!is.na(response)) / (1 + var(weight / mean(weight_st))),
+            n_yg  = sum(!is.na(response)) / (1 + var(weight / mean(weight))),
             n_st  = sum(!is.na(response)) / (1 + var(weight_st / mean(weight_st))),
   )
 
