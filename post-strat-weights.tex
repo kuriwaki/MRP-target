@@ -168,29 +168,38 @@ Do weights that are specifically targeted to match on the state-specific moments
 
 Post-stratification is the process of generating weights to coerce the weighted proportion of the sample to equal any given target distribution (it is called ``post'' because it occurs after the survey was fielded, instead of over-sampling low-propensity individuals during the survey). The method is very simple and was outlined in Deming and Stephan (1940). 
 
-Suppose there are \(j \in \{1, ..., K\}\) groupings. For example, one grouping could be ``education'', which is a discrete variable with four levels. Denote the levels of group \(j\) by \(\ell \in \{1, ..., L_j\}\). 
+Index individuals by \(i \in \{1, ..., n\}\). Each individual has a scalar weight at iteration \(t\) as \(w^{(t)}_i\), and \(j \in \{1, ..., K\}\) categorical covariates \(\bm{X}_i\). For example, one grouping could be ``education'', which is a discrete variable with four levels (high school or less, 2-year college, college, or post-graduate). Denote the levels of group \(j\) by \(\ell \in \{1, ..., L_j\}\). 
 
-For each grouping, there is a target distribution \[\mathbf{p}_g = p_{g1}, .... p_{gL}, ~~ \sum^{L_{g}}_{\ell = 1}p_{g\ell} = 1\] that we would like to hit. In parallel, there is an empirical proportion from the survey: \[\widehat{\mathbf{p}}_g = \widehat{p}_{g1},  ..., \widehat{p}_{gL}, ~~~\sum^{L_{g}}_{\ell = 1}\hat{p}_{g\ell} = 1\]
-these estimates are weighted averages of binary random variables, where the normalized weights at iteration \(t\) are applied as simple weighted means:
-\[\widehat{p}_{g\ell} = \frac{1}{n}\sum^n_{i=1}w_i^{(t)} X_i\]
+For each grouping, there is a target distribution \[\bm{\pi}_j = \pi_{j1}, .... \pi_{KL_j}, ~~ \sum^{L_{j}}_{\ell = 1}\pi_{j\ell} = 1\] that we would like to hit. In parallel, there is an empirical proportion from the survey: \[\widehat{\bm{\pi}}_j = \widehat{\pi}_{j1},  ..., \widehat{\pi}_{jL}, ~~~\sum^{L_{j}}_{\ell = 1}\hat{\pi}_{g\ell} = 1.\]
 
-At each group \(j\), we update the weights simply as
-\[w_{i}^{(t+1)} = \frac{p_{g\ell}}{\widehat{p}_{g\ell}} ~~~\forall i \text{ s.t. } X_{gi} = \ell \]
-this will always set the proportion to the target because now for all \( \ell \in \{1, ..., L_k\}\)
+These estimates are weighted averages of binary random variables, where th normalized weights at iteration \(t\) are applied as simple weighted means:
+\[\bm{\widehat{\pi}}^{(t)}_{j\ell} = \frac{1}{n}\sum^n_{i=1}w_i^{(t)} \mathbf{1}(X_{ji} = \ell)\]
 
+At each group \(j\), we update the weights simply by computing the ratio of target over actual for each level \(\ell\)
 \begin{align}
-&\frac{1}{n}\sum^n_{i=1}w_i^{(t+1)} \mathbf{1}(X_{ji} = \ell)\\
-=&\frac{p_{j\ell}}{\hat{p}_{j\ell}}\frac{1}{n}\sum^n_{i=1}\mathbf{1}(X_{ji} = 1)\\
-=& p_{k\ell}
+r_{j\ell}^{(t+1)} = \frac{\pi_{j\ell}}{\widehat{\pi}^{(t)}_{j\ell}}
+\end{align}
+and apply these factors equally to all respondents for which \(X_{ji} = \ell\) that the sum of weights is \(n\),
+\begin{align}
+w_i^{(t+1)} \leftarrow \left(\sum^{L_j}_{\ell = 1}\mathbf{1}(X_{ji} = \ell)r_{j\ell}^{(t+1)}\right) \bigg / \underbrace{\left(\frac{1}{n}\sum^n_{i=1}\mathbf{1}(X_{ji} = \ell)r_{j\ell}^{(t+1)}\right)}_{\text{Normalizing factor}}
 \end{align}
 
-However, this does not necessarily guarantee that \(w^{(t+1)}\) balance the sample moments for other groups \(k^{\prime}\). The algorithm cycles through each \(j \in \{1, ... K\}\). This constitutes one iteration.
+this will always set the proportion to the target because now for all \( \ell \in \{1, ..., L_j\},\)
+
+\begin{align}
+\frac{1}{n}\sum^n_{i=1}w_i^{(t+1)} \mathbf{1}(X_{ji} = \ell) =\frac{\pi_{j\ell}}{\widehat{\pi}^{(t+1)}_{j\ell}}\frac{1}{n}\sum^n_{i=1}\mathbf{1}(X_{ji} = 1) = \pi_{k\ell}
+\end{align}
+
+\paragraph{Convergence}
+However, this does not necessarily guarantee that the weight \(w^{(t+1)}\) balances the sample moments for other groups \(k^{\prime}\). The algorithm cycles through each \(j \in \{1, ... K\}\). This constitutes one iteration.
 
 At the each of iteration, the algorith assess total balance on typically a  squared loss:
 \[SS^{(t+1)} = \sum^K_{j=1}\sum^{L_{j}}_{\ell = 1}\left(\frac{1}{n}\sum^n_{i=1}(w_i^{(t+1)}\mathbf{1}(X_{ji} = \ell)) - p_{j\ell}\right)\]
 
 and stops if the sums of square is below some threhold, e.g. \(SS^{(t+1)} < 10^{-10}.\)
 
+
+\paragraph{Limitations}
 There are two limitations to this algorithm. The first is that users typically set a cap on the weights, e.g. \(w_{i} < 10\). The CCES caps weights at 15 for the commmon content (\(n = 60,000\)) and at 7 for team modules (\(n = 1,000\)). The second is easily expected from the fact that the main function has \(\widehat{p}_{j\ell}\) in the deominator, meaning it cannot be zero. This comes down to 
 
 \[\sum^n_{i=1}\mathbf{1}(X_{j\ell} = 1) > 0, \forall j, \ell\]
