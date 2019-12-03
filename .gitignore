@@ -9,7 +9,7 @@ figures
 errors
 reference
 
-*.pdf
+!post-strat-weights.pdf
 questions.md
 
 ## Core latex/pdflatex auxiliary files:
