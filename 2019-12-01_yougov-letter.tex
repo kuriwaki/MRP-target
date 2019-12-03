@@ -1,0 +1,45 @@
+%!TEX program = xelatex
+\documentclass[10pt]{letter}
+% \usepackage[margin = 3.5cm]{geometry}
+
+\signature{Shiro Kuriwaki}
+\begin{document}
+
+
+\begin{letter}{}
+\opening{Dear Sam,} 
+
+I'm working on post-stratification weighting for state weights.\footnote{This work is in collaboration wth Soichiro Yamauchi, who is a political methodology graduate student at Harvard who mainly works on causal inference. I have also benefited with discussions with Steve and the Columbia MRP team (Ben Bales and Lauren Kennedy).} What follows is an early writeup that I shared with the CCES Harvard-Tufts team earlier last month.  
+
+On the topic of weighting,  I (along with Brian and Steve) would like to learn more about how YouGov weights the CCES Common Content. The 2018 CCES Guide writes that, to paraphrase,
+
+\begin{quote}
+``The completed pre-election interviews are matched to the target frame, using a weighted Euclidean distance metric conditioning on registration status × age × race × gender × education. --- (a)
+\medskip
+
+``[Then, the sample] is weighted to adjust for any remaining imbalance that exists among the matched sample. For each team and the common content, the completed cases are weighted to the sampling frame using entropy balancing, ... to match the distributions of the 2017 ACS... The moment conditions included age, gender, education, race, plus their interactions. --- (b)
+\medskip
+
+``The resultant weights were then post-stratified by age, gender, education, race, “born again" status, voter registration status, and 2016 Presidential vote choice, as needed.  --- (c)
+\medskip
+
+``Finally, the weights were post-stratified across states and statewide political races (for governor and senator).  --- (d)
+\end{quote}
+
+We have a couple of questions here, including:
+\begin{enumerate}
+\item What is the difference between (b) and (c)? What does it mean for \emph{weights} (instead of respondents) to be post-stratified to state-level outcomes?
+\item In the (c) weighting, what is the target value for 2016 Presidential vote choice?
+\item How is (d) done exactly, for instance when there are many people who are undecided or did not vote, some states have both Governor and Senator races and others have neither?
+\item Are any weights (fractional matches) calculated in (a) and used, for example as starting values, in the second weighting stage?
+% \item If YouGov uses weighting algorithms like \texttt{ebal} (Hainmueller) for the weighting stage in order to create moment-balancing weights, why not use that kind of software for stage (a) as well?
+\end{enumerate}
+
+
+
+
+I look forward to discussing --- thank you in advance.
+
+Shiro
+\end{letter}
+\end{document}
