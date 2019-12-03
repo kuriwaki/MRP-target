@@ -1,5 +1,5 @@
 library(tidyverse)
-library(mlogit)
+library(fs)
 
 cc18_raw <- read_rds("data/input/by-person_cces-2018.Rds")
 resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
@@ -27,7 +27,7 @@ cc18_df <- left_join(cc18_raw, weights, by = c("case_id", "weight")) %>%
          sanc = recode(sanc, Y = 1L, N = 0L),
          vv_turnout_gvm = NULL) %>%
   left_join(select(cd_descrip, cd, pct_trump)) %>%
-  select(year, case_id, weight_us = weight, weight_st, state, cd, dist,
+  select(year, case_id, weight_us = weight, matches("weight_st"), state, cd, dist,
          gender, age, educ, race, citizen, pid3, pid3_leaner, faminc, marstat,
          trump_vshare_cd = pct_trump,
          turnout, sanc)
@@ -35,7 +35,8 @@ cc18_df <- left_join(cc18_raw, weights, by = c("case_id", "weight")) %>%
 
 tx_18 <- cc18_df %>%
   filter(state == "Texas") %>%
-  rename(weight_tx = weight_st) %>%
+  rename(weight_tx_u = weight_st_uacs,
+         weight_tx_w = weight_st_wacs) %>%
   arrange(cd)
 
 tx_acs_st_educ <- st_frac_educ %>%
@@ -64,12 +65,14 @@ tx_votes <- cd_votes %>%
 
 # save
 
-write_rds(tx_18, "data/output/cces/sample-TX/cces_2018-TX.Rds")
-write_rds(tx_votes, "data/output/cces/sample-TX/cd-stats_2018-TX.Rds")
-write_rds(tx_acs_st_educ, "data/output/cces/sample-TX/acs_2017-st-TX_educ.Rds")
-write_rds(tx_acs_st_race, "data/output/cces/sample-TX/acs_2017-st-TX-race.Rds")
-write_rds(tx_acs_cd_educ, "data/output/cces/sample-TX/acs_2017-cd-TX_educ.Rds")
-write_rds(tx_acs_cd_race, "data/output/cces/sample-TX/acs_2017-cd-TX-race.Rds")
+proj_path <- "data/output/cces-states/sample-TX"
+
+write_rds(tx_18, path(proj_path, "cces_2018-TX.Rds"))
+write_rds(tx_votes, path(proj_path, "cd-stats_2018-TX.Rds"))
+write_rds(tx_acs_st_educ, path(proj_path, "acs_2017-st-TX_educ.Rds"))
+write_rds(tx_acs_st_race, path(proj_path, "acs_2017-st-TX-race.Rds"))
+write_rds(tx_acs_cd_educ, path(proj_path, "acs_2017-cd-TX_educ.Rds"))
+write_rds(tx_acs_cd_race, path(proj_path, "acs_2017-cd-TX-race.Rds"))
 
 
 
@@ -77,12 +80,13 @@ write_rds(tx_acs_cd_race, "data/output/cces/sample-TX/acs_2017-cd-TX-race.Rds")
 "`cces_2017-TX.Rds` is the 2018 CCES dataset from Texas.
 There are two sets of weights. `cces_us` is the original weights YouGov weights.
 They are meant to be applied to the whole CCES sample (not just Texas) to be nationally
-representative. `cces_tx` are weights I made to match to the Texas state population.
+representative. `cces_tx_*` are weights I made to match to the Texas state population.
 I try to mimic the YouGov first step weighting as much as possible.
-The target is the ACS counts calibrated by ACS (not just raw counts).
+The target is the ACS counts. `cces_tx_u` uses ACS unweighted counts (as if the ACS)
+were the population and `cces_tx_w` uses ACS weighted counts (trying to approximate
+the population acknowledging the ACS is a sample too).
 The moment conditions are on gender, age bin, education, race, and the 4-choose-2
-pairwise interaction of those demographics, _except_ for education-race
-interactions (because ACS didn't report that). I use the iterake package to
+pairwise interaction of those demographics. I use the iterake package to
 compute my weights (https://github.com/kuriwaki/MRP-target).
 
 
@@ -121,4 +125,4 @@ case_id is the unique identifier for CCES.
 
 " %>%
   str_replace_all("(?<=[\\.a-z1-9])\n", " ") %>%
-  write_lines("data/output/cces/sample-TX/README.md")
+  write_lines(path(proj_path, "README.md"))

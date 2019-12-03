@@ -22,7 +22,8 @@ st_race_frac <- read_rds("data/output/by-st_ACS_gender-age-race.Rds") %>% filter
 
 load("data/output/variable-labels.Rdata")
 
-cc18 <- left_join(cc18_raw, weights, by = c("case_id", "weight"))
+cc18 <- left_join(cc18_raw, weights, by = c("case_id", "weight")) %>%
+  rename(weight_st = weight_st_uacs)
 
 
 # unweighted raw counts
