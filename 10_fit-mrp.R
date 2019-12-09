@@ -7,20 +7,26 @@ library(glue)
 source("00_functions.R")
 
 resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
+person_18 <- read_rds("data/input/by-person_cces-2018.Rds")
 cd_frac_educ <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
+cd_results <- read_rds("data/input/by-cd_info.Rds")
 
 
 wide_18 <- resp_18 %>%
   filter(citizen == 1) %>%
-  select(case_id, weight, cd, gender, age:marstat, vv_turnout_gvm, q_label, response) %>%
-  pivot_wider(id_cols = case_id:vv_turnout_gvm,
+  select(case_id, q_label, response) %>%
+  pivot_wider(id_cols = case_id,
               names_from = q_label,
               values_from = response)
 
+
 wide_cces <- wide_18  %>%
+  inner_join(person_18, by = "case_id") %>%
+  inner_join(select(cd_results, cd, trump_vshare_cd = trump), by = "cd") %>%
+  mutate(trump_vshare_std = scale(trump_vshare_cd, center = TRUE, scale = FALSE)[, 1]) %>%
   transform_vars() %>%
   transmute(case_id,
-            cd, male, age, educ,
+            cd, male, age, educ, trump_vshare_std,
             ahca = as.integer(AHCA == "Y"),
             visa = as.integer(EndVisaLottery == "Y"),
             budg = as.integer(BudgetBipartisan == "Y"),
@@ -34,7 +40,7 @@ cd_strat <- cd_frac_educ %>%
   rename(n = count_geo)
 
 cd_binomial <- wide_cces %>%
-  group_by(male, educ, age, cd) %>%
+  group_by(male, educ, age, cd, trump_vshare_cd) %>%
   summarise(
     n_ahca  = sum(!is.na(ahca)),
     n_visa  = sum(!is.na(visa)),
@@ -53,8 +59,8 @@ cd_binomial <- wide_cces %>%
     ) %>%
   ungroup()
 
-ff_base <- "cbind(ahca, n_ahca - ahca) ~ male +
-  (1 + male | cd)  + (1 + male | educ) + (1 + male | age) +
+ff_base <- "cbind(ahca, n_ahca - ahca) ~ male + trump_vshare_cd +
+  (1 + male + trump_vshare_cd | cd)  + (1 + male | educ) + (1 + male | age) +
   (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
 
@@ -78,6 +84,7 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
                       prior = normal(location = 0, scale = sd),
                       prior_intercept = normal(location = 0, scale = sd),
                       prior_aux = normal(location = 0, scale = sd),
+                      adapt_delta = 0.95,
                       chains = 4,
                       cores = 4,
                       prior_PD = FALSE,
@@ -89,6 +96,7 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
                       family = binomial,
                       prior_intercept = rstanarm::student_t(5, 0, 10, autoscale = FALSE),
                       prior = rstanarm::student_t(5, 0, 2.5, autoscale = FALSE),
+                      adapt_delta = 0.95,
                       chains = 4,
                       cores = 4,
                       prior_PD = FALSE,
@@ -99,21 +107,23 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
     fit <- stan_glmer(ff_outcome,
                       data = data_nzero,
                       family = binomial,
+                      adapt_delta = 0.95,
                       chains = 4,
                       cores = 4,
                       prior_PD = FALSE,
                       seed = 02138)
   }
 
-  write_rds(fit, path("data/output/stan_glmer", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_glmer.Rds")))
-  write_rds(data_nzero, path("data/output/stan_glmer", glue("sd-{str_pad(sd, 2, pad = '0')}/by-cd_{outcome}_g-a-e_df.Rds")))
+  write_rds(fit, path("data/output/reg/stan_glmer",
+                      glue("sd-{str_pad(sd, 2, pad = '0')}/{outcome}/by-cd_{outcome}_g-a-e-t_glmer.Rds")))
+  write_rds(data_nzero, path("data/output/reg/stan_glmer",
+                             glue("sd-{str_pad(sd, 2, pad = '0')}/{outcome}/by-cd_{outcome}_g-a-e-t_df.Rds")))
 }
 
-fit_outcome("turn", sd = "hanretty")
-fit_outcome("turn", sd = 1)
-fit_outcome("turn", sd = "default")
-# fit_outcome("turn", sd = 2)
-# fit_outcome("turn", sd = 5)
-
-# plot(fit, "hist", pars = c("(Intercept)", "male", "cd CA-40"))
+# fit_outcome("turn", sd = "hanretty")
+# fit_outcome("turn", sd = 1)
+# fit_outcome("turn", sd = "default")
+fit_outcome("ahca", sd = "hanretty")
+fit_outcome("ahca", sd = 1)
+fit_outcome("ahca", sd = "default")
 
