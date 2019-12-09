@@ -19,3 +19,5 @@ for (output in c("CDs", "reg")) {
     }
   }
 }
+
+dir_create(path("data", "input", "CCES"))
