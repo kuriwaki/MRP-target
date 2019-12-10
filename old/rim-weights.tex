@@ -1,0 +1,78 @@
+\documentclass[11pt]{article}
+\usepackage{memo}
+\title{\Large\textbf{Rake Weighting Survey Sub^{(t)}_samples}}
+\author{\normalsize Shiro Kuriwaki and Soichiro Yamauchi}
+\date{\normalsize November 2019}
+
+\begin{document}
+\maketitle
+
+
+We first discuss two traditional approaches: (rake) weighting and regression-based propensity score weights. These traditional approaches each have known limitations. Rake weighting matches sample moments exactly but cannot match on categories that are too small. Propensity scores smooth over covariates but are not guaranteed to match on moments.  After highlighting them, we outline our own proposal, a doubly-robust estimator with balancing properties. Our running example is estimating state-level weights from the Cooperative Congressinal Election Study, where only national weights are provided.
+
+\section{Introduction to Rake Weights (Iterated Proportional Fitting)}
+
+Post-stratification is the process of generating weights to coerce the weighted proportion of the sample to equal any given target distribution (it is called ``post'' because it occurs after the survey was fielded, instead of over-sampling low-propensity individuals during the survey). The method is simple and was outlined in Deming and Stephan (\href{https://projecteuclid.org/download/pdf_1/euclid.aoms/1177731829}{1940}). For a recent overview of the practical literature, see Koleinkov (\href{https://journals-sagepub-com.ezp-prod1.hul.harvard.edu/doi/pdf/10.1177/1536867X1401400104}{2014}).
+
+Index individuals by \(i \in \{1, ..., n\}\). Each individual has a scalar weight at iteration \(t\) as \(w^{(t)}_i\), and \(j \in \{1, ..., K\}\) categorical covariates \(\bm{X}_i\). For example, one grouping could be ``education'', which is a discrete variable with four levels (high school or less, 2-year college, college, or post-graduate). Denote the levels of group \(j\) by \(\ell \in \{1, ..., L_j\}\). 
+
+For each grouping, there is a target distribution \[\bm{\pi}_j = \{\pi_{j1}, .... \pi_{KL_j}, ~~ \sum^{L_{j}}_{\ell = 1}\pi_{j\ell} = 1\}\] that we would like to hit. The corresponding actual proportion from the survey is \[\widehat{\bm{\pi}}_j = \{\widehat{\pi}_{j1},  ..., \widehat{\pi}_{jL}\}, ~~~\sum^{L_{j}}_{\ell = 1}\widehat{\pi}_{g\ell} = 1.\]
+
+These estimates are weighted averages of binary random variables, where the normalized weights at iteration \(t\) are applied as simple weighted means:
+\[\bm{\widehat{\pi}}^{(t)}_{j\ell} = \frac{1}{n}\sum^n_{i=1}w_i^{(t)} \mathbf{1}(X_{ji} = \ell)\]
+
+The algorithm consists of two nested loops. The outer loop is indexed by \(t\). The inner loop within each \(t\), which we index by \(j\), iterates within the \(K\) covariates. For each variable \(j\), we update the weights simply by computing the ratio of target over actual for each level \(\ell\)
+\begin{align}
+r_{j\ell}^{(t+1)} \leftarrow \frac{\pi_{j\ell}}{\widehat{\pi}^{(t)}_{j\ell}}.
+\end{align}
+This ratio is the crux of rake weighting, which is the same across packages.\footnote{See, e.g.,  the relevant lines in the source code of \href{https://github.com/cran/anesrake/blob/cb086d4f1712d71458e86c710b0e88343e06d567/R/rakeonvar.factor.R\#L38-L40}{\texttt{anesrake}}, \href{https://github.com/ttrodrigz/iterake/blob/181fcd2cef936533934a5bc7aefe0011b9b2ef41/R/iterake.R\#L263}{\texttt{iterake}}, and {\texttt{survey}}.}  This is why rake weights are also known as iterative \emph{proportional} weighting. To interpret this ratio as weights, we apply these factors equally to all respondents for which \(X_{ji} = \ell\), with some normalizing so that the sum of weights is \(n\),
+\begin{align}
+w_i^{(t+1)} \leftarrow \left(\sum^{L_j}_{\ell = 1}\mathbf{1}(X_{ji} = \ell)r_{j\ell}^{(t+1)}\right) \bigg / \underbrace{\left(\frac{1}{n}\sum^n_{i=1}\sum^{L_j}_{\ell = 1}\mathbf{1}(X_{ji} = \ell)r_{j\ell}^{(t+1)}\right)}_{\text{Normalizing factor}}
+\end{align}
+
+this will always set the proportion to the target because now for all \( \ell \in \{1, ..., L_j\},\)
+
+\begin{align}
+\frac{1}{n}\sum^n_{i=1}w_i^{(t+1)} \mathbf{1}(X_{ji} = \ell) =\frac{\pi_{j\ell}}{\widehat{\pi}^{(t+1)}_{j\ell}}\frac{1}{n}\sum^n_{i=1}\mathbf{1}(X_{ji} = 1) = \pi_{k\ell}
+\end{align}
+
+\paragraph{Convergence}
+However, the inner loop does not necessarily guarantee that the weight \(w^{(t+1)}\) balances the sample moments for other groups \(j^{\prime}\).
+
+At the each of iteration, the algorithm assess total balance on typically a  squared loss:
+\[SS^{(t+1)} = \sum^K_{j=1}\sum^{L_{j}}_{\ell = 1}\left(\frac{1}{n}\sum^n_{i=1}(w_i^{(t+1)}\mathbf{1}(X_{ji} = \ell)) - \pi_{j\ell}\right)\]
+
+and stops if the sums of square is below some threshold, e.g. \(SS^{(t+1)} < 10^{-5}.\) Other algorithms such as what Kolenikov describes for Stata give the condition that all \(K\) categories each meet its own threshold.
+
+
+\paragraph{Limitations}
+There are two limitations to this algorithm. The first is that users typically set a cap on the weights, e.g. \(w_{i}^{(t+1)} = \max\{\tilde w^{(t)}_{i}, 10\}\). The CCES caps weights at 15 for the common content (\(n = 60,000\)) and at 7 for team modules (\(n = 1,000\)). The second is easily expected from the fact that the main function has \(\widehat{p}_{j\ell}\) in the denominator, meaning it cannot be zero. That is, 
+
+\[\sum^n_{i=1}\mathbf{1}(X_{j\ell} = 1) > 0, \forall j, \ell\]
+i.e. that there is at least one observation for each level, in all groupings. This is essentially a limit on the number of dimensions one can match on. For example, if there are no Asian Americans over 65 years old in a sample of Vermont respondents, then the rake weighting cannot weight to race-age bin interactions.
+
+\section{Implementation of Rim Weights}
+
+We use the 2017 ACS (\(N = 3,210,525\)). This includes \(267,971\) non-citizens, but we keep them in for now because they are part of the ACS calibrated counts. The covariates are those mentioned at the beginning of this memo: gender, age, race, and education.
+
+
+We separate states into three tiers based on a data-availability basis:
+\begin{enumerate}
+    \item Large states, where all six pairwise interaction of the categories has no zero-cells in the CCES. These include the top seven largest states in the CCES. These states are California, Texas, Florida, New York, Ohio, Pennsylvania, and Illinois. We calculate rim weights by the \emph{marginals and the interactions}.
+    \item Medium states, where at least pairwise interaction has at least one zero cell, but where all the marginals are populated in the CCES. We calculate rim weights here by the \emph{marginals only}.
+    \item Small states, where even some states have missing cells. This happens only in race, and those states are Alaska, Delaware, and North Dakota. We calculate the rim weights here by \emph{marginals only, ignoring the zero cell altogether}.
+\end{enumerate}
+
+
+We conducted this using the ACS with sampling weights and the ACS without sampling weights. The resulting rim weights for each state are called \texttt{weight\_st\_wacs} and \texttt{weight\_st\_uacs}, respectively.
+
+
+
+
+
+
+\end{document}
+
+
+
+ 
