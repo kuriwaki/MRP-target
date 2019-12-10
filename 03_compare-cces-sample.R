@@ -244,3 +244,4 @@ gg_ed_rim <- gg_ed_temp %+% as_factor(filter(ed_long, weight_type %in% "sfrac"))
   guides(color = FALSE)
 gg_ed_rim
 ggsave("figures/educfrac-rim-comparisons.pdf", gg_ed_rim, h = 3, w = 2.5*3)
+

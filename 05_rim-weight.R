@@ -7,24 +7,20 @@ library(foreach)
 # data ----
 cc18_uw <- read_rds("data/input/by-person_cces-2018.Rds")
 
-st_frac_educ <- read_rds("data/output/by-st_ACS_gender-age-education.Rds")
-st_frac_race <- read_rds("data/output/by-st_ACS_gender-age-race.Rds")
+st_frac_wt <- read_rds("data/output/by-st_ACS-indiv_weighted.Rds")
+st_frac_uw <- read_rds("data/output/by-st_ACS-indiv_unweighted.Rds")
+st_frac_wt <- read_rds("data/output/by-st_ACS-indiv_weighted.Rds")
+st_frac_uw <- read_rds("data/output/by-st_ACS-indiv_unweighted.Rds")
 us_frac_educ <- read_rds("data/output/by-us_ACS_gender-age-education.Rds")
 us_frac_race <- read_rds("data/output/by-us_ACS_gender-age-race.Rds")
 
 
 # States ---------
 # year
-targets_st <- st_frac_educ %>%
-  filter(year == 2017)
+targets_st <- st_frac
 u_states <- unique(targets_st$state)
-u_stids  <- unique(targets_st$stid)
 
 # state partitioned weights -----
-tgt_st_educ <- st_frac_educ %>%
-  filter(year == 2017)
-tgt_st_race <- st_frac_race %>%
-  filter(year == 2017)
 u_states <- unique(targets_st$state)
 u_stids  <- unique(targets_st$stid)
 
@@ -37,11 +33,21 @@ cc_df <-  cc18_uw %>%
          sex_edu = str_c(sex, "_", edu),
          sex_rac = str_c(sex, "_", rac),
          age_edu = str_c(age, "_", edu),
-         age_rac = str_c(age, "_", rac))
+         age_rac = str_c(age, "_", rac),
+         edu_rac = str_c(edu, "_", rac))
 
 
 # subset at each state, and go state by state ---
 large_states <- count(cc18_uw, state, sort = TRUE) %>% pull(state) %>% .[1:7]
+use_wt <- TRUE
+
+if (use_wt) {
+  targets_df <- st_frac_wt
+}
+
+if (!use_wt) {
+  targets_df <- st_frac_uw
+}
 
 st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
 
@@ -49,61 +55,66 @@ st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
   cc_i <- filter(cc_df, state == st_i)
 
   # subset target distributions to state
-  tgt_edu_i <- tgt_st_educ %>%
+  tgt_i <- targets_df %>%
     filter(state == st_i) %>%
     mutate_if(is.labelled, zap_labels) %>%
-    rename(sex = gender, edu = educ)
-  tgt_rac_i <- tgt_st_race %>%
-    filter(state == st_i) %>%
-    mutate_if(is.labelled, zap_labels) %>%
-    rename(sex = gender, rac = race)
+    rename(sex = gender, edu = educ, rac = race)
 
   # tab marginal distribtions of the target
-  prop_sex <- tgt_edu_i %>%
+  prop_sex <- tgt_i %>%
     group_by(sex) %>%
     summarize(count = sum(count))
 
-  prop_age <- tgt_edu_i %>%
+  prop_age <- tgt_i %>%
     group_by(age) %>%
     summarize(count = sum(count))
 
-  prop_edu <- tgt_edu_i %>%
+  prop_edu <- tgt_i %>%
     group_by(edu) %>%
     summarize(count = sum(count))
 
-  prop_rac <- tgt_rac_i %>%
+  prop_rac <- tgt_i %>%
     group_by(rac) %>%
     summarize(count = sum(count))
 
   # tab joint distributions of the target
-  prop_sex_age <- tgt_edu_i %>%
+  prop_sex_age <- tgt_i %>%
     group_by(sex, age) %>%
     summarize(count = sum(count)) %>%
     unite(sex_age, sex, age)
 
-  prop_sex_edu <- tgt_edu_i %>%
+  prop_sex_edu <- tgt_i %>%
     group_by(sex, edu) %>%
     summarize(count = sum(count)) %>%
     unite(sex_edu, sex, edu)
 
-  prop_sex_rac <- tgt_rac_i %>%
+  prop_sex_rac <- tgt_i %>%
     group_by(sex, rac) %>%
     summarize(count = sum(count)) %>%
     unite(sex_rac, sex, rac)
 
-  prop_age_edu <- tgt_edu_i %>%
+  prop_age_edu <- tgt_i %>%
     group_by(age, edu) %>%
     summarize(count = sum(count)) %>%
     unite(age_edu, age, edu)
 
-  prop_age_rac <- tgt_rac_i %>%
+  prop_age_rac <- tgt_i %>%
     group_by(age, rac) %>%
     summarize(count = sum(count)) %>%
     unite(age_rac, age, rac)
 
-  # adapt target if there's zero people of that race
+  prop_edu_rac <- tgt_i %>%
+    group_by(edu, rac) %>%
+    summarize(count = sum(count)) %>%
+    unite(edu_rac, edu, rac)
+
+  # adapt target if there's zero people of that race (Alaska = 4)
   race_i <- count(cc_i, rac)
-  prop_rac <-  semi_join(prop_rac, race_i, by = "rac")
+  if (nrow(race_i) < 5) {
+    cat(st_i, " has missing race....\n")
+    prop_rac <-  semi_join(prop_rac, race_i, by = "rac")
+  }
+
 
   # if small state, only match on marginals
   if (!st_i %in% large_states) {
@@ -133,7 +144,8 @@ st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
       category(name = "sex_edu", prop_sex_edu$sex_edu, targets = prop_sex_edu$count, sum.1 = TRUE),
       category(name = "sex_rac", prop_sex_rac$sex_rac, targets = prop_sex_rac$count, sum.1 = TRUE),
       category(name = "age_edu", prop_age_edu$age_edu, targets = prop_age_edu$count, sum.1 = TRUE),
-      category(name = "age_rac", prop_age_rac$age_rac, targets = prop_age_rac$count, sum.1 = TRUE)
+      category(name = "age_rac", prop_age_rac$age_rac, targets = prop_age_rac$count, sum.1 = TRUE),
+      category(name = "edu_rac", prop_edu_rac$edu_rac, targets = prop_edu_rac$count, sum.1 = TRUE)
     )
   }
 
@@ -146,6 +158,15 @@ st_par_w <- foreach(st_i = u_states, .combine = "bind_rows") %do% {
 
   select(df_wgt, case_id, st, weight, weight_st)
 }
+
+# REPEAT but after setting use_wt to FALSE
+rim_wt <- st_par_w
+st_rim <- left_join(rim_uw, rim_wt, by = c("case_id", "st", "weight")) %>%
+  rename(weight_st_wacs = weight_st.x,
+         weight_st_uacs = weight_st.y)
+
+write_rds(st_rim, "data/output/weights-state.Rds")
+
 
 
 # REPEAT but for one nation ------
