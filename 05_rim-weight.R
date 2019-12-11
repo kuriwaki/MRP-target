@@ -169,6 +169,7 @@ write_rds(st_rim, "data/output/weights-state.Rds")
 
 
 
+
 # REPEAT but for one nation ------
 tgt_edu_i <- tgt_st_educ %>%
   mutate_if(is.labelled, zap_labels) %>%
