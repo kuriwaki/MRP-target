@@ -3,6 +3,9 @@ library(haven)
 library(foreach)
 library(ebal)
 
+source("00_functions.R") # need for st_df
+
+
 st_frac <- read_rds("data/output/by-st_ACS_gender-age-education.Rds")
 cc18_uw <- read_rds("data/input/by-person_cces-2018.Rds")
 
@@ -53,12 +56,20 @@ if (test) {
 }
 
 # matrix setup ----
-sel_df <- st_wide %>%
-  mutate(sel = 1) %>%
+sel_df <- mutate(st_wide, sel = 1) %>%
+  add_row(!!!c(pop_st_edu, sel = 0)) %>%
   add_row(!!!c(pop_st_edu, sel = 0))
 
 sel_mat <- select(sel_df, matches("edu_"))
 trt_vec <- pull(sel_df, sel)
 
 # ebal
-ebalance(Treatment = trt_vec, X = select(sel_mat, -51))
+ebalance(Treatment = trt_vec, X = as.matrix(select(sel_mat, -51)))
+length(trt_vec)
+dim(sel_mat)
+
+
+sel_df %>%
+  arrange(st) %>%
+  select(-c(1:2)) %>%
+  view()

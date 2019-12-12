@@ -12,8 +12,6 @@ edu_regex   <- as.character(glue("({str_c(education, collapse = '|')})"))
 races_regex <- as.character(glue("({str_c(races, collapse = '|')})"))
 
 # Prep -----
-
-
 # get vars ----
 vars_raw <- load_variables(2017, "acs1")
 
