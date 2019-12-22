@@ -1,5 +1,6 @@
 library(tidyverse)
 library(haven)
+library(glue)
 library(fs)
 
 # Data -------
@@ -23,11 +24,14 @@ ages  <- c("18 to 24 years",
 age_lbl <- setNames(1:5L, ages)
 
 
+# standardize CD, and other vars
 resp_18 <- inner_join(person, response, by = c("year", "case_id")) %>%
   left_join(citizen) %>%
+  mutate(cd = as.character(glue("{st}-{str_pad(dist, width = 2, pad = '0')}"))) %>%
   select_if(~any(!is.na(.x))) %>%
   select(year:weight, state:dist, matches("pid3"),
          gender:marstat, citizen, matches("vv"), qID:response) %>%
+  mutate(vv_party_gen = fct_lump(vv_party_gen, n = 4)) %>% # LUMP
   mutate(age_bin = case_when(age %in% 18:24 ~ 1L,
                              age %in% 25:34 ~ 2L,
                              age %in% 35:44 ~ 3L,
@@ -41,13 +45,14 @@ resp_18 <- inner_join(person, response, by = c("year", "case_id")) %>%
   mutate(cces_label = as.character(as_factor(cces_label)))
 
 cc18 <- resp_18 %>%
-  select(year:marstat, citizen, vv_turnout_gvm, race_cces_chr, cces_label) %>%
+  select(year:marstat, cd, citizen,
+         vv_turnout_gvm,  vv_party_gen, vv_regstatus,
+         race_cces_chr, cces_label) %>%
   distinct()
 
 cc18_fmt <- cc18 %>%
   left_join(distinct(race_key, race_cces_chr, race), by = "race_cces_chr") %>%
-  left_join(distinct(select(educ_key, cces_label, educ)), by = "cces_label") %>%
-  mutate(cd = as.character(glue("{st}-{str_pad(dist, width = 2, pad = '0')}")))
+  left_join(distinct(select(educ_key, cces_label, educ)), by = "cces_label")
 
 
 write_rds(resp_18, "data/input/by-question_cces-2018.Rds")
