@@ -30,18 +30,20 @@ cces_count <- cces_nc_std  %>%
   group_by(cd, trump_vshare_std, age, male, educ) %>%
   summarize(
     turn = sum(vv_turnout_gvm == "Voted"),
-    n_turn = sum(!is.na(vv_turnout_gvm))
+    n_turn = sum(!is.na(vv_turnout_gvm)),
+    regr = sum(vv_party_gen == "Republican"),
+    n_regr = sum(!is.na(vv_party_gen))
   ) %>%
   ungroup()
 
 
-ff_base <- "cbind(turn, n_turn - turn) ~ male + trump_vshare_std +
+ff_base <- "cbind(regr, n_regr - regr) ~ male + trump_vshare_std +
   (1 + male + trump_vshare_std | cd)  + (1 + male | educ) + (1 + male | age) +
   (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
 
 fit <- stan_glmer(ff_base,
-                  data = ungroup(filter(cces_count, n_turn > 0)),
+                  data = ungroup(filter(cces_count, n_regr > 0)),
                   family = binomial,
                   prior_intercept = rstanarm::student_t(5, 0, 10, autoscale = FALSE),
                   prior = rstanarm::student_t(5, 0, 2.5, autoscale = FALSE),
