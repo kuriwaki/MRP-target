@@ -6,10 +6,10 @@ library(glue)
 
 source("00_functions.R")
 
-resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
-person_18 <- read_rds("data/input/by-person_cces-2018.Rds")
-cd_frac_educ <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
+resp_18 <- read_rds("data/input/CCES/by-question_cces-2018.Rds")
+person_18 <- read_rds("data/input/CCES/by-person_cces-2018.Rds")
 cd_results <- read_rds("data/input/by-cd_info.Rds")
+cd_frac_educ <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
 
 
 wide_18 <- resp_18 %>%
@@ -22,7 +22,7 @@ wide_18 <- resp_18 %>%
 
 wide_cces <- wide_18  %>%
   inner_join(person_18, by = "case_id") %>%
-  inner_join(select(cd_results, cd, trump_vshare_cd = trump), by = "cd") %>%
+  inner_join(select(cd_results, cd, trump_vshare_cd = pct_trump), by = "cd") %>%
   mutate(trump_vshare_std = scale(trump_vshare_cd, center = TRUE, scale = FALSE)[, 1]) %>%
   transform_vars() %>%
   transmute(case_id,
@@ -40,7 +40,7 @@ cd_strat <- cd_frac_educ %>%
   rename(n = count_geo)
 
 cd_binomial <- wide_cces %>%
-  group_by(male, educ, age, cd, trump_vshare_cd) %>%
+  group_by(male, educ, age, cd, trump_vshare_std) %>%
   summarise(
     n_ahca  = sum(!is.na(ahca)),
     n_visa  = sum(!is.na(visa)),
@@ -59,8 +59,8 @@ cd_binomial <- wide_cces %>%
     ) %>%
   ungroup()
 
-ff_base <- "cbind(ahca, n_ahca - ahca) ~ male + trump_vshare_cd +
-  (1 + male + trump_vshare_cd | cd)  + (1 + male | educ) + (1 + male | age) +
+ff_base <- "cbind(ahca, n_ahca - ahca) ~ male + trump_vshare_std +
+  (1 + male + trump_vshare_std | cd)  + (1 + male | educ) + (1 + male | age) +
   (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
 
@@ -120,9 +120,6 @@ fit_outcome <- function(outcome, data = cd_binomial, base_formula = ff_base, sd 
                              glue("sd-{str_pad(sd, 2, pad = '0')}/{outcome}/by-cd_{outcome}_g-a-e-t_df.Rds")))
 }
 
-# fit_outcome("turn", sd = "hanretty")
-# fit_outcome("turn", sd = 1)
-# fit_outcome("turn", sd = "default")
 fit_outcome("ahca", sd = "hanretty")
 fit_outcome("ahca", sd = 1)
 fit_outcome("ahca", sd = "default")
