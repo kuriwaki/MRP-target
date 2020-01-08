@@ -37,13 +37,13 @@ cces_count <- cces_nc_std  %>%
   ungroup()
 
 
-ff_base <- "cbind(regr, n_regr - regr) ~ male + trump_vshare_std +
+ff_base <- "cbind(turn, n_regr - turn) ~ male + trump_vshare_std +
   (1 + male + trump_vshare_std | cd)  + (1 + male | educ) + (1 + male | age) +
   (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
 
-fit <- stan_glmer(ff_base,
-                  data = ungroup(filter(cces_count, n_regr > 0)),
+fit <- stan_glmer(as.formula(ff_base),
+                  data = ungroup(filter(cces_count, n_turn > 0)),
                   family = binomial,
                   prior_intercept = rstanarm::student_t(5, 0, 10, autoscale = FALSE),
                   prior = rstanarm::student_t(5, 0, 2.5, autoscale = FALSE),
@@ -52,8 +52,44 @@ fit <- stan_glmer(ff_base,
                   prior_PD = FALSE,
                   seed = 02138)
 
-write_rds(fit, "data/output/glmer-turn_NC_gaet.Rds")
 
+fit <- brms::brm(as.formula(ff_base),
+                 data = ungroup(filter(cces_count, n_turn > 0)),
+                 family = binomial,
+                 prior = c(set_prior("normal(0,5)", class = "b"),
+                           + set_prior("normal(0, 5)", class = "sd")),
+                 chains = 1,
+                 cores = 4,
+                 seed = 02138)
+
+ff_prior <- brms::get_prior(as.formula(ff_base),
+                            data = ungroup(filter(cces_count, n_turn > 0)),
+                            family = binomial)
+
+cces_indiv <- mutate(cces_nc_std, turn = vv_turnout_gvm == "Voted")
+count(cces_indiv, turn)
+ff_base <- "mvbind(turn, n_turn - turn) ~ male + (1 | cd) + (1 | educ) + (1 | age)"
+bf(ff_base)
+brms::make_stancode(
+  formula = turn ~ male + (1|cd), # as.formula(ff_base),
+  data = cces_indiv, # ungroup(filter(cces_count, n_turn > 0)),
+  family = binomial,
+  prior = c(set_prior("normal(0,5)", class = "sd"),
+            set_prior("normal(0,5)", class = "b"))
+  )
+
+brms::get_prior(
+  formula = as.formula(ff_base),
+  data = ungroup(filter(cces_count, n_turn > 0)),
+  family = binomial
+)
+
+
+
+
+
+
+write_rds(fit, "data/output/glmer-turn_NC_gaet.Rds")
 
 # data ---
 cd_strat_raw <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds") %>%

@@ -124,3 +124,14 @@ fit_outcome("ahca", sd = "hanretty")
 fit_outcome("ahca", sd = 1)
 fit_outcome("ahca", sd = "default")
 
+write_rds(cd_binomial, "data/output/2018-cces_binomial-counts.Rds")
+
+
+fit <- brms::brm(as.formula(ff_base),
+                  data = filter(cd_binomial, n_ahca > 0),
+                  family = binomial,
+                  # adapt_delta = 0.95,
+                  chains = 1,
+                  cores = 4,
+                  # prior_PD = FALSE,
+                  seed = 02138)
