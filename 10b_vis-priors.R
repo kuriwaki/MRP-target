@@ -7,10 +7,10 @@ library(patchwork)
 
 source("00_functions.R")
 
-resp_18 <- read_rds("data/input/by-question_cces-2018.Rds")
-person_18 <- read_rds("data/input/by-person_cces-2018.Rds")
-cd_frac_educ <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
+resp_18 <- read_rds("data/input/CCES/by-question_cces-2018.Rds")
+person_18 <- read_rds("data/input/CCES/by-person_cces-2018.Rds")
 cd_results <- read_rds("data/input/by-cd_info.Rds")
+cd_frac_educ <- read_rds("data/output/by-cd_ACS_gender-age-education.Rds")
 
 
 wide_18 <- resp_18 %>%
@@ -22,7 +22,7 @@ wide_18 <- resp_18 %>%
 
 wide_cces <- wide_18  %>%
   inner_join(person_18, by = "case_id") %>%
-  inner_join(select(cd_results, cd, trump_vshare_cd = trump), by = "cd") %>%
+  inner_join(select(cd_results, cd, trump_vshare_cd = pct_trump), by = "cd") %>%
   mutate(trump_vshare_std = scale(trump_vshare_cd, center = TRUE, scale = FALSE)[, 1]) %>%
   transform_vars() %>%
   transmute(case_id,
@@ -52,6 +52,8 @@ ff_outcome <- "cbind(turn, n_turn - turn) ~ male + trump_vshare_std +
   (1 + male + trump_vshare_std | cd)  + (1 + male | educ) + (1 + male | age) +
   (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
+ff_outcome <- "cbind(turn, n_turn - turn) ~ male + (1 | cd) + (1 | educ) + (1 | age)"
+
 
 priors_default <- stan_glmer(ff_outcome,
                              data = cd_binomial,
@@ -60,16 +62,24 @@ priors_default <- stan_glmer(ff_outcome,
                              chains = 1,
                              prior_PD = TRUE)
 
-priors_norm_01 <- update(fit_default,
+priors_norm_01 <- update(priors_default,
                          prior_intercept = normal(0, 1),
                          prior = normal(0, 1))
 
-priors_student <- update(fit_default,
+priors_student <- update(priors_default,
                          prior_intercept = rstanarm::student_t(5, 0, 10, autoscale = FALSE),
                          prior = rstanarm::student_t(5, 0, 2.5, autoscale = FALSE))
 
 
+linpred_default <- posterior_linpred(priors_default, transform = TRUE)
+linpred_norm_01 <- posterior_linpred(priors_norm_01, transform = TRUE)
+linpred_student <- posterior_linpred(priors_student, transform = TRUE)
+hist(linpred_default[, ], breaks = 1000)
+hist(linpred_norm_01[, ], breaks = 100)
+hist(linpred_student[, ], breaks = 1000)
+dim(linpred_default)
 
+# plotting the coefficient estimates (implied  by the prior)
 int_d <- plot(priors_default, "hist", pars = "(Intercept)", binwidth = 1)  +
    scale_x_continuous(limits = c(-80, 80)) +
    labs(title = "Prior for Intercept",
