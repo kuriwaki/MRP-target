@@ -1,17 +1,17 @@
 library(tidyverse)
 library(haven)
+library(rcces)
 
 source("00_functions.R")
 load("data/output/variable-labels.Rdata")
 
-age5_key
 
 acs17 <- read_dta("data/input/ipums/acs2017.dta") %>%
   filter(age >= 18)
 
 
-count(acs17, age) %>%
-  filter(age %in% 64:68)
+# count(acs17, age) %>%
+#   filter(age %in% 64:68)
 
 acs_age <- acs17 %>%
   rename(age_num = age) %>%
