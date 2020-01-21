@@ -23,5 +23,6 @@ cc18_fmt <- person %>%
 resp_18 <- inner_join(response, cc18_fmt)
 
 
+# Save ----
 write_rds(cc18_fmt, "data/input/by-person_cces-2018.Rds")
 write_rds(resp_18, "data/input/by-question_cces-2018.Rds")

@@ -5,6 +5,7 @@ library(stringr)
 library(forcats)
 library(labelled)
 library(rstanarm)
+library(brms)
 library(fs)
 library(glue)
 library(foreach)
@@ -27,17 +28,17 @@ cces_nc_std <- cces_nc %>%
   transform_vars()
 
 cces_count <- cces_nc_std  %>%
-  group_by(cd, trump_vshare_std, age, male, educ) %>%
+  group_by(cd, trump_vshare_std, age, male, educ, race) %>%
   summarize(
     turn = sum(vv_turnout_gvm == "Voted"),
     n_turn = sum(!is.na(vv_turnout_gvm)),
-    regr = sum(vv_party_gen == "Republican"),
-    n_regr = sum(!is.na(vv_party_gen))
+    regR = sum(vv_party_gen == "Republican Party"),
+    n_regR = sum(!is.na(vv_party_gen))
   ) %>%
   ungroup()
 
 
-ff_base <- "cbind(turn, n_regr - turn) ~ male + trump_vshare_std +
+ff_base <- "mvbind(turn, n_regr - turn) ~ male + trump_vshare_std +
   (1 + male + trump_vshare_std | cd)  + (1 + male | educ) + (1 + male | age) +
   (1 | cd:age) + (1 | cd:educ)  + (1 | educ:age)"
 
@@ -52,12 +53,19 @@ fit <- stan_glmer(as.formula(ff_base),
                   prior_PD = FALSE,
                   seed = 02138)
 
+# sample averages
 
+cces_nc_std %>%
+  group_by(cd) %>%
+  summarize(regR = mean(as_factor(vv_party_gen) == "Republican Party"),
+            turn = mean(as_factor(vv_turnout_gvm) == "Voted"))
+
+# Mitzi - Lauren visit
 fit <- brms::brm(as.formula(ff_base),
                  data = ungroup(filter(cces_count, n_turn > 0)),
                  family = binomial,
                  prior = c(set_prior("normal(0,5)", class = "b"),
-                           + set_prior("normal(0, 5)", class = "sd")),
+                  set_prior("normal(0, 5)", class = "sd")),
                  chains = 1,
                  cores = 4,
                  seed = 02138)
@@ -66,7 +74,9 @@ ff_prior <- brms::get_prior(as.formula(ff_base),
                             data = ungroup(filter(cces_count, n_turn > 0)),
                             family = binomial)
 
+
 cces_indiv <- mutate(cces_nc_std, turn = vv_turnout_gvm == "Voted")
+
 count(cces_indiv, turn)
 ff_base <- "mvbind(turn, n_turn - turn) ~ male + (1 | cd) + (1 | educ) + (1 | age)"
 bf(ff_base)
@@ -85,9 +95,11 @@ brms::get_prior(
 )
 
 
-
-
-
+left_join(samp_Avg, nc_vf) %>%
+  ggplot(aes(regR_vf, regR)) +
+  geom_point() +
+  coord_equal() +
+  geom_abline(intercept = 0, slope = 1)
 
 write_rds(fit, "data/output/glmer-turn_NC_gaet.Rds")
 
@@ -225,4 +237,3 @@ ggplot(mrp_ests, aes(x = sen_turnout_cvap, y = p_mrp_est, color = pct_trump)) +
   # guides(color =  FALSE)  +
   labs(x = "Turnout (Percent of VAP)",
        y = "MRP Estimate of Turnout")
-
