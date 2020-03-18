@@ -35,6 +35,11 @@ races <- c("White alone, not Hispanic or Latino",
            # "Two or more races!!Two races excluding Some other race, and three or more races"
 )
 
+ages_regex  <- as.character(glue("({str_c(ages, collapse = '|')})"))
+edu_regex   <- as.character(glue("({str_c(education, collapse = '|')})"))
+races_regex <- as.character(glue("({str_c(races, collapse = '|')})"))
+
+
 std_acs <- function(tbl, var_df = vars) {
   std_df <- tbl %>%
     filter(!str_detect(NAME, "Puerto Rico")) %>%
@@ -45,14 +50,10 @@ std_acs <- function(tbl, var_df = vars) {
     select(year, everything())
 }
 
-
-
-
+#' get CD format
 st_df <- tibble(st = state.abb, state = state.name) %>%
   add_row(st = "DC", state = "District of Columbia")
 
-
-#' get CD format
 cd_name <- function(vec, st_to_state = st_df) {
   distnum <- vec %>%
     str_extract("([0-9]+|at Large)") %>%
@@ -64,6 +65,7 @@ cd_name <- function(vec, st_to_state = st_df) {
 
   return(as.character(glue("{st}-{distnum}")))
 }
+
 
 
 transform_vars <- function(tbl) {
