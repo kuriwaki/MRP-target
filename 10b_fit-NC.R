@@ -64,7 +64,7 @@ cces_nc_std %>%
 fit <- brms::brm(as.formula(ff_base),
                  data = ungroup(filter(cces_count, n_turn > 0)),
                  family = binomial,
-                 prior = c(set_prior("normal(0,5)", class = "b"),
+                 prior = c(set_prior("normal(0, 5)", class = "b"),
                   set_prior("normal(0, 5)", class = "sd")),
                  chains = 1,
                  cores = 4,

@@ -5,15 +5,11 @@ library(tidycensus)
 
 source("00_functions.R")
 
-# Codes (currently duplicate with 02_format) ---
-
-ages_regex  <- as.character(glue("({str_c(ages, collapse = '|')})"))
-edu_regex   <- as.character(glue("({str_c(education, collapse = '|')})"))
-races_regex <- as.character(glue("({str_c(races, collapse = '|')})"))
 
 # Prep -----
 # get vars ----
 vars_raw <- load_variables(2017, "acs1")
+vars_raw <- load_variables(2017, "acs5")
 
 vars <- vars_raw %>%
   mutate(variable = name) %>%

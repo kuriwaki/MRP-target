@@ -17,10 +17,12 @@ pres_kos <- read_excel("data/input/dailykos/by-cd_pres.xlsx", skip = 1) %>%
 
 cd_df <- pres_kos %>%
   select(cd, incumbent, inc_party = party, pct_trump = trump, pct_romney = romney, pct_mccain = mccain) %>%
+  mutate(cd = str_replace(cd, "-AL", "-01")) %>%
   left_join(select(placenames, cd, descrip = geographic_description, place = largest_place))
 
 
 write_rds(cd_df, "data/input/by-cd_info.Rds")
+
 write_csv(filter(cd_df, str_detect(cd, "TX")),
           "data/output/cces/sample-TX/by-cd_info.csv",
           na = "")
