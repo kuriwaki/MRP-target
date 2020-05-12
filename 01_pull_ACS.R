@@ -54,7 +54,7 @@ pop_cd <- foreach(y = 2017, .combine = "bind_rows") %do% {
   )
 
 
-pop_st <- foreach(y = 2017, .combine = "bind_rows") %do% {
+pop_st <- foreach(y = c(2008, 2012, 2016), .combine = "bind_rows") %do% {
   get_acs(geography = "state",
           year = y,
           survey = "acs1",

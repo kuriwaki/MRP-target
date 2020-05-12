@@ -29,6 +29,7 @@ race_cells <- vars %>%
   left_join(select(race_key, race_acs, race), by = "race_acs") %>%
   select(variable, gender, age, race, race_acs)
 
+
 clean_strat <- function(grp_tab, geo, codes = cell_vars) {
   stopifnot(is.grouped_df(grp_tab)) # grouped by vars for geo
 
@@ -56,7 +57,9 @@ clean_strat <- function(grp_tab, geo, codes = cell_vars) {
     mutate(acs_frac = count / count_geo) %>%
     filter(!is.na(acs_frac)) %>%
     mutate(geo = geo) %>%
-    select(year, geo, matches("(st|cd)"), gender, age, matches("race|educ"), everything())
+    left_join(tibble(st = state.abb, state = state.name)) %>%
+    select(-stid) %>%
+    select(year, geo, matches("(state|st$|cd)"), gender, age, matches("race|educ"), everything())
 }
 
 
@@ -82,5 +85,16 @@ write_rds(st_educ_frac, "data/output/by-st_ACS_gender-age-education.Rds")
 write_rds(us_race_frac, "data/output/by-us_ACS_gender-age-race.Rds")
 write_rds(cd_race_frac, "data/output/by-cd_ACS_gender-age-race.Rds")
 write_rds(st_race_frac, "data/output/by-st_ACS_gender-age-race.Rds")
+
+
+# For Michael Isakov
+st_race_frac <- clean_strat(group_by(pop_st, year, stid, state), "st", race_cells) %>%
+  select(year, st, state, gender, age, race, count, count_in_state = count_geo, frac = acs_frac)
+st_educ_frac <- clean_strat(group_by(pop_st, year, stid, state), "st", educ_cells) %>%
+  select(year, st, state, gender, age, educ, count, count_in_state = count_geo, frac = acs_frac)
+
+tibble(st = state.abb, area = state.area) %>% write_rds("~/Dropbox/ddi_polls/data/input/ACS/by-st_area.rds")
+write_rds(st_educ_frac, "~/Dropbox/ddi_polls/data/input/ACS/by-st_ACS_gender-age-education.rds")
+write_rds(st_race_frac, "~/Dropbox/ddi_polls/data/input/ACS/by-st_ACS_gender-age-race.rds")
 
 

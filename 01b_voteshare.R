@@ -1,12 +1,17 @@
 library(tidyverse)
 library(glue)
 library(readxl)
+library(janitor)
 
 
 placenames <- read_excel("data/input/dailykos/by-cd_placenames.xlsx") %>%
   rename_all(~str_to_lower(str_replace_all(str_replace_all(.x, "%", "pct"), "(\\.+|\\s|-)", "_"))) %>%
   mutate_if(is.numeric, ~.x/100) %>%
   rename(cd = district)
+
+pres_08 <- read_excel("data/input/dailykos/by-cd_pres.xlsx", sheet = 2) %>%
+  clean_names() %>%
+  mutate(redist_cycle = "2002")
 
 pres_kos <- read_excel("data/input/dailykos/by-cd_pres.xlsx", skip = 1) %>%
   select(1:9) %>%
@@ -22,8 +27,4 @@ cd_df <- pres_kos %>%
 
 
 write_rds(cd_df, "data/input/by-cd_info.Rds")
-
-write_csv(filter(cd_df, str_detect(cd, "TX")),
-          "data/output/cces/sample-TX/by-cd_info.csv",
-          na = "")
 
