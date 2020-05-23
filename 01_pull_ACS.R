@@ -1,39 +1,13 @@
 library(tidyverse)
 library(foreach)
 library(glue)
+library(ccesMRPprep)
 library(tidycensus)
 
 source("00_functions.R")
 
 
 # Prep -----
-# get vars ----
-vars_raw <- load_variables(2017, "acs1")
-vars_raw <- load_variables(2017, "acs5")
-
-vars <- vars_raw %>%
-  mutate(variable = name) %>%
-  separate(name, sep = "_", into = c("table", "num")) %>%
-  select(variable, table, concept, num, label, everything()) %>%
-  filter(str_detect(label, "Total")) %>%
-  mutate(label = str_remove(label, "Estimate!!Total")) %>%
-  mutate(gender = str_extract(label, "(Male|Female)"),
-         age = str_extract(label, ages_regex),
-         educ = str_extract(label, edu_regex),
-         race = coalesce(str_extract(label, regex(races_regex, ignore_case = TRUE)),
-                         str_extract(concept, regex(races_regex, ignore_case = TRUE))))
-
-# partition vars to pull
-edu_vars <- vars %>%
-  filter(!is.na(gender), !is.na(age), !is.na(educ)) %>%
-  filter(str_detect(table, "^B")) %>%
-  pull(variable)
-
-race_vars <- vars %>%
-  filter(str_detect(table, "B01001[B-I]")) %>%
-  filter(!is.na(gender), !is.na(age), !is.na(race)) %>%
-  pull(variable)
-
 
 # Easier ------
 

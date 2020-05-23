@@ -1,45 +1,5 @@
 # CODES
 
-ages  <- c("18 to 24 years",
-           "25 to 34 years",
-           "35 to 44 years",
-           "45 to 64 years",
-           "65 years and over",
-           "18 and 19 years",
-           "20 to 24 years",
-           "25 to 29 years",
-           "30 to 34 years",
-           "35 to 44 years",
-           "45 to 54 years",
-           "55 to 64 years",
-           "65 to 74 years",
-           "75 to 84 years",
-           "85 years and over")
-education <- c("Less than 9th grade",
-               "9th to 12th grade,? no diploma",
-               "High school graduate \\(includes equivalency\\)",
-               "Some college,? no degree",
-               "Some college or associate's degree",
-               "Associate's degree",
-               "Bachelor's degree",
-               "Graduate or professional degree")
-races <- c("White alone, not Hispanic or Latino",
-           "Hispanic or Latino",
-           "Black or African American alone",
-           "American Indian and Alaska Native alone",
-           "Asian alone",
-           "Native Hawaiian and Other Pacific Islander alone",
-           "Some other race alone",
-           "Two or more races" #,
-           # "Two or more races!!Two races including Some other race",
-           # "Two or more races!!Two races excluding Some other race, and three or more races"
-)
-
-ages_regex  <- as.character(glue("({str_c(ages, collapse = '|')})"))
-edu_regex   <- as.character(glue("({str_c(education, collapse = '|')})"))
-races_regex <- as.character(glue("({str_c(races, collapse = '|')})"))
-
-
 std_acs <- function(tbl, var_df = vars) {
   std_df <- tbl %>%
     filter(!str_detect(NAME, "Puerto Rico")) %>%
